@@ -221,38 +221,23 @@ inline void shift_rows(uint8_t* state) {
 	state[3+4*1] = tmp;
 }
 
+inline void mix_column(uint8_t *column)
+{
+	uint8_t tmp[4]=
+		{column[0],column[1],column[2],column[3]};
+
+	column[0] = GF_Mul2[tmp[0]] ^ GF_Mul3[tmp[1]] ^ tmp[2] ^ tmp[3];
+	column[1] = GF_Mul2[tmp[1]] ^ GF_Mul3[tmp[2]] ^ tmp[3] ^ tmp[0];;
+	column[2] = GF_Mul2[tmp[2]] ^ GF_Mul3[tmp[3]] ^ tmp[0] ^ tmp[1];;
+	column[3] = GF_Mul2[tmp[3]] ^ GF_Mul3[tmp[0]] ^ tmp[1] ^ tmp[2];;
+}
+
 inline void mix_columns(uint8_t *state)
 {
-	int i,j,col=0;
-	uint8_t tmp[4];
-	static const uint8_t mul_matr[4][4]={
-		{2, 3, 1, 1},
-		{1, 2, 3, 1},
-		{1, 1, 2, 3},
-		{3, 1, 1, 2} };
-		
-	for(col=0;col<4;col++) {
-		for(i=0; i<4; i++) 
-			tmp[i] = state[col*4+i];
-		
-		for(i=0; i<4; i++) {
-			state[col*4+i] = 0;
-
-			for(j=0; j<4; j++) {
-				uint16_t tmp16=0;
-				switch(mul_matr[i][j]) {
-					case 1: tmp16 = (uint16_t)tmp[j]; 
-							break;
-					case 2: tmp16 = (uint16_t)tmp[j] << 1;
-							break;
-					case 3: tmp16 = ((uint16_t)tmp[j] << 1) ^ tmp [j];
-							break;
-				}
-				state[col*4+i] ^= tmp16 & 0x100 ? tmp16 ^ 0x11B : tmp16 ; 
-			}
-		}
-	}
-
+	mix_column(state + 0*4);
+	mix_column(state + 1*4);
+	mix_column(state + 2*4);
+	mix_column(state + 3*4);
 }
 
 inline void add_round_key(uint8_t *state, const uint8_t *rk)
