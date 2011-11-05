@@ -175,7 +175,7 @@ void MYAES_set_encrypt_key(uint8_t *u_key, uint16_t nk, MYAES_KEY *key)
         key->rd[i] = WORD32(u_key[4*i+3], u_key[4*i+2], u_key[4*i+1], u_key[4*i]);
 	}
     
-    for(i=nk; i < 4*(key->nr+2); i++) {
+    for(i=nk; i < 4*(key->nr+1); i++) {
 		tmp = key->rd[i-1];
 		if(i%nk == 0)
 			tmp = subword(rotword(tmp)) ^ Rcon[i/nk];
@@ -221,7 +221,7 @@ inline void shift_rows(uint8_t* state) {
 	state[3+4*1] = tmp;
 }
 
-inline void mix_column(uint8_t *column)
+inline void mix_single_column(uint8_t *column)
 {
 	uint8_t tmp[4]=
 		{column[0],column[1],column[2],column[3]};
@@ -234,10 +234,10 @@ inline void mix_column(uint8_t *column)
 
 inline void mix_columns(uint8_t *state)
 {
-	mix_column(state + 0*4);
-	mix_column(state + 1*4);
-	mix_column(state + 2*4);
-	mix_column(state + 3*4);
+	mix_single_column(state + 0*4);
+	mix_single_column(state + 1*4);
+	mix_single_column(state + 2*4);
+	mix_single_column(state + 3*4);
 }
 
 inline void add_round_key(uint8_t *state, const uint8_t *rk)
