@@ -1,17 +1,37 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <openssl/aes.h>
 #include "aes.h"
 #include "debug.h"
 
+extern const uint8_t sbox[];
+extern const uint8_t inv_sbox[];
+extern const uint8_t GF_Mul2[];
+extern const uint8_t GF_Mul3[];
+extern const uint8_t GF_Mul9[];
+extern const uint8_t GF_Mul11[];
+extern const uint8_t GF_Mul13[];
+extern const uint8_t GF_Mul14[];
+
+#define test_block_print_error(i, ok, label, model, my) \
+	do { \
+		printf("Tesing %s: ", label); \
+		for((i=0), (ok=1); i<0x100; i++) \
+			if(model[i]!=my[i]) { \
+				printf ("\n%02X should be %02X but it's %02X", i, model[i], my[i]); \
+				ok=0; \
+			} \
+		if(!ok) { \
+			puts(""); \
+			print_block(label, 0x100 ,0x10, my, " ", "\n"); \
+			return -1; \
+		} else { \
+			printf("%s ok\n", label); \
+		} \
+	} while(0)
+
 int main(int argc, char **argv)
 {
-//	uint8_t block[32] = {
-//		0x00, 0x00, 0x00, 0x00,
-//		0x00, 0x00, 0x00, 0x00,
-//		0x00, 0x00, 0x00, 0x00,
-//		0x00, 0x00, 0x00, 0x00
-//	};
-	
 	uint8_t block[16] = {
 		0x00, 0x01, 0x02, 0x03,
 		0x04, 0x05, 0x06, 0x07,
@@ -19,22 +39,16 @@ int main(int argc, char **argv)
 		0x0c, 0x0d, 0x0e, 0x0f
 	};
 
-	uint8_t user_key[32] = {
-		0x00, 0x01, 0x02, 0x03,
-		0x04, 0x05, 0x06, 0x07,
-		0x08, 0x09, 0x0a, 0x0b,
-		0x0c, 0x0d, 0x0e, 0x0f,
+ 	uint8_t user_key[32] = {
+ 		0xff, 0xfe, 0xfd, 0xfc,
+ 		0xfb, 0xfa, 0xf9, 0xf8,
+ 		0xf7, 0xf6, 0xf5, 0xf4,
+ 		0xf3, 0xf2, 0xf1, 0xf0,
 		0x00, 0x01, 0x02, 0x03,
 		0x04, 0x05, 0x06, 0x07,
 		0x08, 0x09, 0x0a, 0x0b,
 		0x0c, 0x0d, 0x0e, 0x0f
-	};
-// 	uint8_t user_key[16] = {
-// 		0xff, 0xfe, 0xfd, 0xfc,
-// 		0xfb, 0xfa, 0xf9, 0xf8,
-// 		0xf7, 0xf6, 0xf5, 0xf4,
-// 		0xf3, 0xf2, 0xf1, 0xf0
-// 	};
+ 	};
 	
 	uint8_t target1[16];
 	uint8_t target2[16];
@@ -43,6 +57,7 @@ int main(int argc, char **argv)
 	AES_KEY key;
 	MYAES_KEY my_key;
 	
+
 	AES_set_encrypt_key(user_key, 128, &key);
 	MYAES_set_encrypt_key(user_key, 4, &my_key);
 

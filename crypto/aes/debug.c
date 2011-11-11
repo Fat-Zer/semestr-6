@@ -21,7 +21,37 @@ void print_block_paralel(char* title, int num, size_t sz, size_t by, ...)
 	}
 }
 
-void print_block(char* title, const uint8_t* block)
+void print_block(char* title, size_t sz, uint32_t by, const uint8_t* block,
+		const char* col_sep, const char* raw_sep)
+{
+	int i;
+
+	puts(title);
+	for(i=0; i<sz-1; i++) {
+			if((i+1)%by!=0)
+				printf("%02X%s", block[i], col_sep);
+			else
+				printf("%02X%s", block[i], raw_sep);
+		}
+	printf("%02X\n",block[sz-1]);
+}
+
+void print_block32(char* title, size_t sz, uint32_t by, const uint32_t* block,
+		const char* col_sep, const char* raw_sep)
+{
+	int i;
+
+	puts(title);
+	for(i=0; i<sz-1; i++) {
+			if((i+1)%by!=0)
+				printf("%08X%s", block[i], col_sep);
+			else
+				printf("%08X%s", block[i], raw_sep);
+		}
+	printf("%08X\n",block[sz-1]);
+}
+
+void print_aes_block(char* title, const uint8_t* block)
 {
 	int i;
 	puts(title);
@@ -33,7 +63,7 @@ void print_block(char* title, const uint8_t* block)
 }
 
 
-void print_3block(char* title, const uint8_t* block0,
+void print_3aes_block(char* title, const uint8_t* block0,
 		const uint8_t* block1, const uint8_t* block2)
 {
 	int i;
