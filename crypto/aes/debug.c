@@ -62,6 +62,25 @@ void print_aes_block(char* title, const uint8_t* block)
 	}
 }
 
+void print_aes_words(char* title, 
+		const uint32_t w1, const uint32_t w2,
+		const uint32_t w3, const uint32_t w4)
+{
+	puts(title);
+	printf("%02X %02X %02X %02X\n",
+			(w1      ) & 0xff, (w1 >>  8) & 0xff,
+			(w1 >> 16) & 0xff, (w1 >> 24) & 0xff);
+	printf("%02X %02X %02X %02X\n",
+			(w2      ) & 0xff, (w2 >>  8) & 0xff,
+			(w2 >> 16) & 0xff, (w2 >> 24) & 0xff);
+	printf("%02X %02X %02X %02X\n",
+			(w3      ) & 0xff, (w3 >>  8) & 0xff,
+			(w3 >> 16) & 0xff, (w3 >> 24) & 0xff);
+	printf("%02X %02X %02X %02X\n",
+			(w4      ) & 0xff, (w4 >>  8) & 0xff,
+			(w4 >> 16) & 0xff, (w4 >> 24) & 0xff);
+}
+
 
 void print_3aes_block(char* title, const uint8_t* block0,
 		const uint8_t* block1, const uint8_t* block2)
