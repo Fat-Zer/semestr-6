@@ -15,7 +15,9 @@
 #define AES_GEN       (0x03)	// generator in the Rejindale's field
 #define AES_SBOX_CC   (0x63)	// S-Box C constant (x^6 + x^5 + x + 1)
 #define ROR(x, n, sz)	(((x)>>(n)) | ((x)<<((sz)-(n))))
+#define ROL(x, n, sz)	(((x)<<(n)) | ((x)>>((sz)-(n))))
 #define ROR32(x, n)	(ROR(x, n, 32))
+#define ROL32(x, n)	(ROL(x, n, 32))
 /** this function manualy multiplies numbers in GF(2^8) field.
  */
 inline uint8_t GF_mul_manual(uint8_t a, uint8_t b)
@@ -133,7 +135,7 @@ void gen_AES_mixsbox_table(const uint8_t *GF_Mul2, const uint8_t *GF_Mul3, const
 	int i;
 	for(i=0; i<0x100; i++) {
 		uint8_t stmp=sbox[i];
-		tbl[i] = ROR32(WORD32(GF_Mul2[stmp], stmp, stmp, GF_Mul3[stmp]), 8 * tblnum);
+		tbl[i] = ROL32(WORD32(GF_Mul3[stmp], stmp, stmp, GF_Mul2[stmp]), 8 * tblnum);
 
 	}
 }
@@ -142,7 +144,7 @@ void print_8bit_Ctbl(char* name, size_t sz, size_t by, const uint8_t* block)
 {
 	int i;
 
-	printf("const uint8_t %s = {\n\t",name);
+	printf("const uint8_t %s[] = {\n\t",name);
 	for(i=0; i<sz-1; i++) {
 			if((i+1)%by!=0)
 				printf("0x%02X, ", block[i]);
@@ -156,7 +158,7 @@ void print_32bit_Ctbl(char* name, size_t sz, size_t by, const uint32_t* block)
 {
 	int i;
 
-	printf("const uint32_t %s = {\n\t",name);
+	printf("const uint32_t %s[] = {\n\t",name);
 	for(i=0; i<sz-1; i++) {
 			if((i+1)%by!=0)
 				printf("0x%08X, ", block[i]);
@@ -168,6 +170,7 @@ void print_32bit_Ctbl(char* name, size_t sz, size_t by, const uint32_t* block)
 
 #define PRINT_C_TABLE8(tbl, by) print_8bit_Ctbl(#tbl, sizeof(tbl), by, tbl);
 #define PRINT_C_TABLE32(tbl, by) print_32bit_Ctbl(#tbl, sizeof(tbl) / 4, by, tbl);
+
 
 int main(int argc, char **argv)
 {
@@ -188,52 +191,32 @@ int main(int argc, char **argv)
 
 	gen_GF_log_ilog(GF_log, GF_ilog);
 	gen_AES_sbox(GF_log, GF_ilog, sbox, isbox);
-	PRINT_C_TABLE8(sbox,8);
-	PRINT_C_TABLE8(isbox,8);
+	PRINT_C_TABLE8(sbox,16);
+	PRINT_C_TABLE8(isbox,16);
 	
-	// print_block("sbox", 0x100 ,0x10, sbox, " ", "\n");
-	// print_block("isbox", 0x100 ,0x10, isbox, " ", "\n");
 	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul2, 2);
-	PRINT_C_TABLE8(GF_Mul2,8);
+	PRINT_C_TABLE8(GF_Mul2,16);
 	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul3, 3);
-	PRINT_C_TABLE8(GF_Mul3,8);
+	PRINT_C_TABLE8(GF_Mul3,16);
 	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul9, 9);
-	PRINT_C_TABLE8(GF_Mul9,8);
+	PRINT_C_TABLE8(GF_Mul9,16);
 	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul11, 11);
-	PRINT_C_TABLE8(GF_Mul11,8);
+	PRINT_C_TABLE8(GF_Mul11,16);
 	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul13, 13);
-	PRINT_C_TABLE8(GF_Mul13,8);
+	PRINT_C_TABLE8(GF_Mul13,16);
 	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul14, 14);
-	PRINT_C_TABLE8(GF_Mul14,8);
+	PRINT_C_TABLE8(GF_Mul14,16);
 
 	gen_AES_mixsbox_table(GF_Mul2, GF_Mul3, sbox, sbox_mix0, 0);
-	PRINT_C_TABLE32(sbox_mix0, 4);
 	gen_AES_mixsbox_table(GF_Mul2, GF_Mul3, sbox, sbox_mix1, 1);
-	PRINT_C_TABLE32(sbox_mix1, 4);
 	gen_AES_mixsbox_table(GF_Mul2, GF_Mul3, sbox, sbox_mix2, 2);
-	PRINT_C_TABLE32(sbox_mix2, 4);
 	gen_AES_mixsbox_table(GF_Mul2, GF_Mul3, sbox, sbox_mix3, 3);
-	PRINT_C_TABLE32(sbox_mix3, 4);
 
-//	print_block("GFMul3", 0x100 ,0x10, GF_Mul3, " ", "\n");
+	PRINT_C_TABLE32(sbox_mix0, 8);
+	PRINT_C_TABLE32(sbox_mix1, 8);
+	PRINT_C_TABLE32(sbox_mix2, 8);
+	PRINT_C_TABLE32(sbox_mix3, 8);
 
-	//AES_set_encrypt_key(user_key, 128, &key);
-	//MYAES_set_encrypt_key(user_key, 4, &my_key);
-
-	//AES_encrypt(block, target1, &key);
-	//MYAES_encrypt(block, target2, &my_key);
-	//print_block_paralel("encripted", 2, 0x10 ,4, target1, target2);
-	//
-	//AES_set_decrypt_key(user_key, 128, &key);
-	//AES_decrypt(target1, dtarget1, &key);
-	//MYAES_decrypt(target2, dtarget2, &my_key);
-	//print_block_paralel("decripted", 2, 0x10 ,4, dtarget1, dtarget2);
-	// print_block_paralel("generated keys", 2, 4*4*11 ,4, key.rd_key, my_key.rd);
-	// print_block_paralel("generated keys", 2, 4*4*15 ,4, key.rd_key, my_key.rd);
-	// AES_set_decrypt_key(user_key, 128, &key);
-	// AES_decrypt(target1, target2 , &key);
-	// print_3block("openssl/AES decrypted",target1, target2, user_key);
-	
 	return 0;
 }
 
