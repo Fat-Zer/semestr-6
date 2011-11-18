@@ -19,6 +19,7 @@ typedef struct myaes_key_t {
 } MYAES_KEY;
 
 void MYAES_set_encrypt_key(uint8_t *user_key, uint16_t sz, MYAES_KEY *key);
+void MYAES_set_decrypt_key(uint8_t *user_key, uint16_t nk, MYAES_KEY *key);
 void MYAES_encrypt(const uint8_t* in, uint8_t* out, const MYAES_KEY* key);
 void MYAES_decrypt(const uint8_t* in, uint8_t* out, const MYAES_KEY* key);
 

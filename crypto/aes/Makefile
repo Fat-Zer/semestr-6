@@ -1,8 +1,8 @@
 CC = gcc
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g -DAES_TABLE_ENCRIPTION
 # CFLAGS = -Wall -O2
 
-aescrypt_LDFLAGS = -lssl
+# aescrypt_LDFLAGS = -lcrypto
 aescrypt_OBJECTS = aescrypt.o aes.o debug.o
 
 aesdatagen_OBJECTS = aes_data_gen.o

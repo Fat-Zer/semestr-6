@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdbool.h>
-#include <openssl/aes.h>
+// #include <openssl/aes.h>
 #include "aes.h"
 #include "debug.h"
 
@@ -21,25 +21,10 @@
 		} \
 	} while(0)
 
+void inv_mix_single_column(uint8_t *column);
+
 int main(int argc, char **argv)
 {
-//	uint8_t block[16] = {
-//		0x00, 0x01, 0x02, 0x03,
-//		0x04, 0x05, 0x06, 0x07,
-//		0x08, 0x09, 0x0a, 0x0b,
-//		0x0c, 0x0d, 0x0e, 0x0f
-//	};
-//
-// 	uint8_t user_key[32] = {
-// 		0xff, 0xfe, 0xfd, 0xfc,
-// 		0xfb, 0xfa, 0xf9, 0xf8,
-// 		0xf7, 0xf6, 0xf5, 0xf4,
-// 		0xf3, 0xf2, 0xf1, 0xf0,
-//		0x00, 0x01, 0x02, 0x03,
-//		0x04, 0x05, 0x06, 0x07,
-//		0x08, 0x09, 0x0a, 0x0b,
-//		0x0c, 0x0d, 0x0e, 0x0f
-// 	};
 	uint8_t block[16] = {
 		0x32, 0x43, 0xf6, 0xa8,
 		0x88, 0x5a, 0x30, 0x8d,
@@ -51,32 +36,29 @@ int main(int argc, char **argv)
 		0x28, 0xae, 0xd2, 0xa6,
 		0xab, 0xf7, 0x15, 0x88,
 		0x09, 0xcf, 0x4f, 0x3c};
-	
-	uint8_t target1[16];
-	uint8_t target2[16];
-	uint8_t dtarget1[16];
-	uint8_t dtarget2[16];
-	AES_KEY key;
+	uint8_t target[16];
+	uint8_t dtarget[16];
 	MYAES_KEY my_key;
-	
 
-	AES_set_encrypt_key(user_key, 128, &key);
+//	uint8_t target2[16];
+//	uint8_t dtarget2[16];
+//	AES_KEY key;
+	
+	print_block_paralel("block", 1, 0x10 ,4, block);
+	
+//	AES_set_encrypt_key(user_key, 128, &key);
+//	AES_encrypt(block, target1, &key);
 	MYAES_set_encrypt_key(user_key, 4, &my_key);
-//	print_block_paralel("encripted", 2, 0x80 ,4, key.rd_key, my_key.rd);
 
-	AES_encrypt(block, target1, &key);
-	MYAES_encrypt(block, target2, &my_key);
-	print_block_paralel("encripted", 2, 0x10 ,4, target1, target2);
+	MYAES_encrypt(block, target, &my_key);
+	print_block_paralel("encrypted", 1, 0x10 ,4, target);
 	
-	AES_set_decrypt_key(user_key, 128, &key);
-	AES_decrypt(target1, dtarget1, &key);
-	MYAES_decrypt(target2, dtarget2, &my_key);
-	print_block_paralel("decripted", 2, 0x10 ,4, dtarget1, dtarget2);
-	// print_block_paralel("generated keys", 2, 4*4*11 ,4, key.rd_key, my_key.rd);
-	// print_block_paralel("generated keys", 2, 4*4*15 ,4, key.rd_key, my_key.rd);
-	// AES_set_decrypt_key(user_key, 128, &key);
-	// AES_decrypt(target1, target2 , &key);
-	// print_3block("openssl/AES decrypted",target1, target2, user_key);
+//	AES_set_decrypt_key(user_key, 128, &key);
+//	AES_decrypt(target1, dtarget1, &key);
+	MYAES_set_decrypt_key(user_key, 4, &my_key);
+	MYAES_decrypt(target, dtarget, &my_key);
+	
+	print_block_paralel("decripted", 1, 0x10 ,4, dtarget);
 	
 	return 0;
 }

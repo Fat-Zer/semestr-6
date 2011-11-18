@@ -128,6 +128,10 @@ void gen_GF_mul_table(const uint8_t *GF_log, const uint8_t *GF_ilog,
 }
 
 /** generetes table for combine mix_columns and sbox steps this is for byte0
+ * ETbl0 = S [x].[02, 01, 01, 03]; 
+ * ETbl1 = S [x].[03, 02, 01, 01];
+ * ETbl2 = S [x].[01, 03, 02, 01];
+ * ETbl3 = S [x].[01, 01, 03, 02];
  */
 void gen_AES_mixsbox_table(const uint8_t *GF_Mul2, const uint8_t *GF_Mul3, const uint8_t* sbox, 
 		uint32_t *tbl, uint8_t tblnum)
@@ -138,6 +142,21 @@ void gen_AES_mixsbox_table(const uint8_t *GF_Mul2, const uint8_t *GF_Mul3, const
 		tbl[i] = ROL32(WORD32(GF_Mul3[stmp], stmp, stmp, GF_Mul2[stmp]), 8 * tblnum);
 
 	}
+}
+/** generetes table for combine mix_columns and sbox steps this is for byte0
+ * DTbl0[x] = Si[x].[0e, 09, 0d, 0b];
+ * DTbl1[x] = Si[x].[0b, 0e, 09, 0d];
+ * DTbl2[x] = Si[x].[0d, 0b, 0e, 09];
+ * DTbl3[x] = Si[x].[09, 0d, 0b, 0e];
+ */
+void gen_AES_imixsbox_table(const uint8_t *GF_Mul9, const uint8_t *GF_MulB,
+		const uint8_t *GF_MulD, const uint8_t *GF_MulE, 
+		const uint8_t* isbox, uint32_t *tbl, uint8_t tblnum)
+{
+	int i;
+	for(i=0; i<0x100; i++)
+		tbl[i] = ROL32(WORD32(GF_MulB[isbox[i]], GF_MulD[isbox[i]], 
+					GF_Mul9[isbox[i]], GF_MulE[isbox[i]]), 8 * tblnum);
 }
 
 void print_8bit_Ctbl(char* name, size_t sz, size_t by, const uint8_t* block)
@@ -181,31 +200,36 @@ int main(int argc, char **argv)
 	uint8_t GF_Mul2[256];
 	uint8_t GF_Mul3[256];
 	uint8_t GF_Mul9[256];
-	uint8_t GF_Mul11[256];
-	uint8_t GF_Mul13[256];
-	uint8_t GF_Mul14[256];
+	uint8_t GF_MulB[256];
+	uint8_t GF_MulD[256];
+	uint8_t GF_MulE[256];
 	uint32_t sbox_mix0[256];
 	uint32_t sbox_mix1[256];
 	uint32_t sbox_mix2[256];
 	uint32_t sbox_mix3[256];
+
+	uint32_t isbox_mix0[256];
+	uint32_t isbox_mix1[256];
+	uint32_t isbox_mix2[256];
+	uint32_t isbox_mix3[256];
 
 	gen_GF_log_ilog(GF_log, GF_ilog);
 	gen_AES_sbox(GF_log, GF_ilog, sbox, isbox);
 	PRINT_C_TABLE8(sbox,16);
 	PRINT_C_TABLE8(isbox,16);
 	
-	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul2, 2);
+	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul2, 0x02);
 	PRINT_C_TABLE8(GF_Mul2,16);
-	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul3, 3);
+	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul3, 0x03);
 	PRINT_C_TABLE8(GF_Mul3,16);
-	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul9, 9);
+	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul9, 0x09);
 	PRINT_C_TABLE8(GF_Mul9,16);
-	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul11, 11);
-	PRINT_C_TABLE8(GF_Mul11,16);
-	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul13, 13);
-	PRINT_C_TABLE8(GF_Mul13,16);
-	gen_GF_mul_table(GF_log, GF_ilog, GF_Mul14, 14);
-	PRINT_C_TABLE8(GF_Mul14,16);
+	gen_GF_mul_table(GF_log, GF_ilog, GF_MulB, 0x0b);
+	PRINT_C_TABLE8(GF_MulB,16);
+	gen_GF_mul_table(GF_log, GF_ilog, GF_MulD, 0x0d);
+	PRINT_C_TABLE8(GF_MulD,16);
+	gen_GF_mul_table(GF_log, GF_ilog, GF_MulE, 0x0e);
+	PRINT_C_TABLE8(GF_MulE,16);
 
 	gen_AES_mixsbox_table(GF_Mul2, GF_Mul3, sbox, sbox_mix0, 0);
 	gen_AES_mixsbox_table(GF_Mul2, GF_Mul3, sbox, sbox_mix1, 1);
@@ -217,6 +241,16 @@ int main(int argc, char **argv)
 	PRINT_C_TABLE32(sbox_mix2, 8);
 	PRINT_C_TABLE32(sbox_mix3, 8);
 
+	gen_AES_imixsbox_table(GF_Mul9, GF_MulB, GF_MulD, GF_MulE, isbox, isbox_mix0, 0);
+	gen_AES_imixsbox_table(GF_Mul9, GF_MulB, GF_MulD, GF_MulE, isbox, isbox_mix1, 1);
+	gen_AES_imixsbox_table(GF_Mul9, GF_MulB, GF_MulD, GF_MulE, isbox, isbox_mix2, 2);
+	gen_AES_imixsbox_table(GF_Mul9, GF_MulB, GF_MulD, GF_MulE, isbox, isbox_mix3, 3);
+
+	PRINT_C_TABLE32(isbox_mix0, 8);
+	PRINT_C_TABLE32(isbox_mix1, 8);
+	PRINT_C_TABLE32(isbox_mix2, 8);
+	PRINT_C_TABLE32(isbox_mix3, 8);
+	
 	return 0;
 }
 
