@@ -51,7 +51,6 @@ int main(int argc, char *argv[])
                         outs << row.firstChildElement("name").text() << ' '
                              << row.firstChildElement("surname").text() << ' '<<'\n';
                     }
-
                 }
             } else {
                 qCritical() << "QDomDocument failed to parse xml. Reason: " << err;
@@ -63,8 +62,6 @@ int main(int argc, char *argv[])
     } else {
         qCritical() << "Couldn't connect to db. Reason: " << db.lastError().text() ;
     }
-
-
 
     return 0;
 }
