@@ -1,0 +1,44 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/alexander/projects/security/enigma/src/bit_array.h
+stddef.h
+-
+stdbool.h
+-
+
+/home/alexander/projects/security/enigma/src/cli_utils.h
+stddef.h
+-
+stdbool.h
+-
+
+/home/alexander/projects/security/enigma/src/enigma.c
+stdlib.h
+-
+stdio.h
+-
+enigma.h
+/home/alexander/projects/security/enigma/src/enigma.h
+bit_array.h
+/home/alexander/projects/security/enigma/src/bit_array.h
+
+/home/alexander/projects/security/enigma/src/enigma.h
+
+/home/alexander/projects/security/enigma/src/genkey.c
+stdio.h
+-
+stdlib.h
+-
+string.h
+-
+enigma.h
+/home/alexander/projects/security/enigma/src/enigma.h
+cli_utils.h
+/home/alexander/projects/security/enigma/src/cli_utils.h
+

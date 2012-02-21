@@ -1,0 +1,59 @@
+[Buildset]
+BuildItems=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00\x01\x00\x00\x00\x0c\x00e\x00n\x00i\x00g\x00m\x00a)
+
+[CMake]
+BuildDirs=/home/alexander/projects/security/enigma/build
+CMakeDir=/usr/share/cmake/Modules
+Current CMake Binary=file:///usr/bin/cmake
+CurrentBuildDir=file:///home/alexander/projects/security/enigma/build
+CurrentBuildType=Debug
+CurrentInstallDir=
+ProjectRootRelative=./
+
+[Launch]
+Launch Configurations=Launch Configuration 0,Launch Configuration 1,Launch Configuration 2
+
+[Launch][Launch Configuration 0]
+Configured Launch Modes=execute
+Configured Launchers=nativeAppLauncher
+Name=genkey
+Type=Native Application
+
+[Launch][Launch Configuration 0][Data]
+Arguments=-k /tmp/enigma_debug/key
+Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x00)
+Dependency Action=Nothing
+EnvironmentGroup=default
+Project Target=enigma,genkey
+Working Directory=
+isExecutable=false
+
+[Launch][Launch Configuration 1]
+Configured Launch Modes=execute
+Configured Launchers=nativeAppLauncher
+Name=engcrypt-crypt
+Type=Native Application
+
+[Launch][Launch Configuration 1][Data]
+Arguments=-k /tmp/enigma_debug/key /tmp/enigma_debug/inp /tmp/enigma_debug/output
+Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x00)
+Dependency Action=Nothing
+EnvironmentGroup=default
+Project Target=enigma,engcrypt
+Working Directory=
+isExecutable=false
+
+[Launch][Launch Configuration 2]
+Configured Launch Modes=execute
+Configured Launchers=nativeAppLauncher
+Name=engcrypt-decrypt
+Type=Native Application
+
+[Launch][Launch Configuration 2][Data]
+Arguments=-k /tmp/enigma_debug/key /tmp/enigma_debug/output /tmp/enigma_debug/decrypted
+Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x00)
+Dependency Action=Nothing
+EnvironmentGroup=default
+Project Target=enigma,engcrypt
+Working Directory=
+isExecutable=false

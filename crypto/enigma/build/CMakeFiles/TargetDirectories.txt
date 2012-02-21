@@ -1,0 +1,2 @@
+/home/alexander/projects/security/enigma/build/CMakeFiles/engcrypt.dir
+/home/alexander/projects/security/enigma/build/CMakeFiles/genkey.dir
