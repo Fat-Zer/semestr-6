@@ -1,0 +1,1 @@
+/usr/bin/gcc  -g   CMakeFiles/destest.dir/src/test.c.o CMakeFiles/destest.dir/src/des.c.o CMakeFiles/destest.dir/src/des_work.c.o CMakeFiles/destest.dir/src/bit_reverse.c.o  -o destest -rdynamic 

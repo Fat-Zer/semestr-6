@@ -1,0 +1,2 @@
+/home/alexander/projects/security/DES/build/CMakeFiles/descrypt.dir
+/home/alexander/projects/security/DES/build/CMakeFiles/destest.dir

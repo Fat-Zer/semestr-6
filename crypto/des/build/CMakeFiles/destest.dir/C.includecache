@@ -1,0 +1,30 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/alexander/projects/security/DES/src/bit_reverse.h
+stdint.h
+-
+stddef.h
+-
+
+/home/alexander/projects/security/DES/src/des.c
+limits.h
+-
+des.h
+/home/alexander/projects/security/DES/src/des.h
+bit_reverse.h
+/home/alexander/projects/security/DES/src/bit_reverse.h
+
+/home/alexander/projects/security/DES/src/des.h
+stdint.h
+-
+stdio.h
+-
+stdbool.h
+-
+

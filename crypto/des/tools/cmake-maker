@@ -1,0 +1,35 @@
+#!/bin/bash
+echo $*
+export OBJ_SUBDIR=build
+export CFLAGS="-Wall -g -O0"
+export CXXFLAGS=$CFLAGS
+# MAKE_PARAMS="VERBOSE=1"
+
+CMAKE_OPTS=""
+if [ -n "$CFLAGS" ]; then
+	CMAKE_OPTS="$CMAKE_OPTS -DCMAKE_C_FLAGS=$CFLAGS"
+fi
+
+if [ -n "$CXXFLAGS" ]; then
+	CMAKE_OPTS="$CMAKE_OPTS -DCMAKE_CXX_FLAGS=$CXXFLAGS"
+fi
+
+if [ ! -f $OBJ_SUBDIR/Makefile -o Makefile -ot ../CMakeList.txt ]; then
+    if [ -e CMakeLists.txt ]; then
+        if [ -d build ]; then
+            cd $OBJ_SUBDIR
+            rm -f CMakeCache.txt Makefile
+        else
+            mkdir $OBJ_SUBDIR
+            cd $OBJ_SUBDIR
+        fi
+        cmake $CMAKE_OPTS .. || exit $?
+        cd ..
+	else
+		echo '!!! NO CmakeList.txt found !!!'
+		exit 1
+    fi
+fi
+cd $OBJ_SUBDIR
+make $MAKE_PARAMS $*
+exit $?
