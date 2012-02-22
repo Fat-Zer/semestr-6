@@ -1,0 +1,37 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.7	//
+BIGNUM_H_FAT_ZER	bignum/bignum.h	2;"	d
+BIGNUM_PRIVATE_H	bignum/bignum_private.h	2;"	d
+BN_EXTRA_BITS	bignum/bignum_private.h	16;"	d
+BN_FULL_WORDS	bignum/bignum_private.h	13;"	d
+BN_MALLOC_FAILED	bignum/bignum.h	/^	BN_MALLOC_FAILED$/;"	e	enum:BN_error_t
+BN_NEED_WORDS	bignum/bignum_private.h	19;"	d
+BN_OK	bignum/bignum.h	/^	BN_OK = 0,$/;"	e	enum:BN_error_t
+BN_WORD_BITS	bignum/bignum_private.h	10;"	d
+BN_WORD_HIGH_MASK	bignum/bignum_private.h	29;"	d
+BN_WORD_LOW_MASK	bignum/bignum_private.h	32;"	d
+BN_WORD_MAX	bignum/bignum_private.h	26;"	d
+BN_WORD_ZERO	bignum/bignum_private.h	23;"	d
+BN_deinit	bignum/bignum.c	/^void BN_deinit(bignum_t *num) {$/;"	f
+BN_error_t	bignum/bignum.h	/^typedef enum BN_error_t {$/;"	g
+BN_error_t	bignum/bignum.h	/^} BN_error_t;$/;"	t	typeref:enum:BN_error_t
+BN_free	bignum/bignum.c	/^void BN_free(bignum_t* num) {$/;"	f
+BN_init	bignum/bignum.c	/^void BN_init(bignum_t *num) {$/;"	f
+BN_new	bignum/bignum.c	/^bignum_t* BN_new() {$/;"	f
+BN_print	bignum/bignum_print.c	/^BN_print(bignum_t *num, char format) {$/;"	f
+BN_print_hex	bignum/bignum_print.c	/^BN_print_hex(bignum_t *num, char upper) {$/;"	f
+BN_set_width	bignum/bignum.c	/^BN_error_t BN_set_width(bignum_t* num, size_t new_w) {$/;"	f
+BN_word_t	bignum/bignum.h	/^typedef uint64_t BN_word_t;$/;"	t
+BN_zero	bignum/bignum.c	/^void BN_zero(bignum_t* num) {$/;"	f
+BN_zero_head	bignum/bignum.c	/^void BN_zero_head(bignum_t *num, size_t from) {$/;"	f
+bignum_t	bignum/bignum.h	/^typedef struct bignum_t {$/;"	s
+bignum_t	bignum/bignum.h	/^} bignum_t;$/;"	t	typeref:struct:bignum_t
+d	bignum/bignum.h	/^	BN_word_t *d;$/;"	m	struct:bignum_t
+main	bignum/bignum-debug.c	/^int main()$/;"	f
+sign	bignum/bignum.h	/^	char sign;$/;"	m	struct:bignum_t
+sz	bignum/bignum.h	/^	size_t sz;$/;"	m	struct:bignum_t
+w	bignum/bignum.h	/^	size_t w;$/;"	m	struct:bignum_t
