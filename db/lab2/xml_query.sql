@@ -1,0 +1,10 @@
+CREATE OR REPLACE FUNCTION smart_query_to_xml(query text) RETURNS TEXT AS $$
+DECLARE
+	str RECORD;
+BEGIN
+	FOR str IN EXECUTE query LOOP
+	
+		
+	END LOOP
+END
+$$ LANGUAGE plpgsql
