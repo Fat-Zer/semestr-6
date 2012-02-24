@@ -71,9 +71,11 @@ gender_man=1;
 generate_cars_n = 10000
 generate_clients_n = 10000
 generate_borrows_n = 10000
-min_payment = 1
-max_payment = 100
-
+min_balance = -100
+max_balance = 10000
+min_car_monthPrice = 1
+max_car_monthPrice = 100
+discount_widths = [0]*400 + [10]*100 + [20]*25 + [30]*13 + [50]*7 + [60]*4;
 # load data
 print "loading data..."
 car_models = loadStrings('./data/car')
@@ -106,7 +108,8 @@ for i in xrange(0, generate_cars_n ):
 	while(num in cars_number_set):
 		num = generateCarNumber()
 	cars_number_set.add(num)
-	cars.append((str(i), num, random.choice(car_models), random.choice(color)))
+	monthPrice=random.randint(min_car_monthPrice, max_car_monthPrice)
+	cars.append((str(i), num, random.choice(car_models), random.choice(color), str(monthPrice)))
 cars_number_set=set()
    
 # generate client list
@@ -128,7 +131,8 @@ for i in xrange(1,generate_clients_n):
 		name = random.choice(woman_names)
 		family = random.choice(familys)[gender_woman]
 		father_name = random.choice(father_names)[gender_woman]
-	clients.append((str(i), family, name, father_name, document, number))
+	balance=random.randint(min_balance, max_balance)
+	clients.append((str(i), family, name, father_name, document, number, str(balance)))
 	
 document_set=set()
 	
@@ -147,7 +151,8 @@ for i in xrange(1,generate_borrows_n):
 			for res_dates in car_reserve_dict[car]:
 				if(isPeriodsIntersects(borrow_dates,res_dates)):
 					borrow_start = generateDate()
-					borrow_dates = ( borrow_start, generateDate(mind=borrow_start) )
+					borrow_dates = ( borrow_start, generateDate(mind=borrow_start, \
+									dtime=datetime.timedelta(days=365)) )
 					break;
 		car_reserve_dict[car].append(borrow_dates)
 	else:
@@ -157,13 +162,14 @@ for i in xrange(1,generate_borrows_n):
 		payed = random.choice([True,False])
 	else:
 		payed=True
-	payment=random.randint(min_payment, max_payment)*(borrow_dates[1] - borrow_dates[0]).days
 	
 	if (random.randint(0,1000) == 0):
 		payment = '\\N'
 		payed = True
 	else:
-	 	payment=str(float(payment)/100)
+	 	payment='{:.2f}'.format(float((cars[int(car)])[4]) * \
+				(1-float(random.choice(discount_widths))/100) * \
+				(borrow_dates[1] - borrow_dates[0]).days/30.);
 	
 	borrows.append((str(i), car, random.choice(clients)[0], str(borrow_dates[0]), str(borrow_dates[1]), payment, str(payed)))
 
