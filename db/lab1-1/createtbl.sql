@@ -8,6 +8,7 @@ SELECT
 ($1='загранпаспорт' ) AND ($2 ~'^[0-9]{2} [0-9]{7}$' );
 $$ LANGUAGE SQL;
 
+CREATE OR REPLACE FUNCTION is_
 
 CREATE TABLE cars  -- Создать таблицу 
 (
@@ -21,12 +22,12 @@ CREATE TABLE cars  -- Создать таблицу
 CREATE TABLE clients -- Создать таблицу "Клиенты"
 (
 	id SERIAL PRIMARY KEY,  		--
-	surname VARCHAR (100) NOT NULL,
+	surname VARCHAR (100) NOT NULL ,
 	name VARCHAR (100) NOT NULL,
 	fatherName VARCHAR (100) NOT NULL,
 	docType  TPersonalDoc,
 	docNum VARCHAR(12) CHECK (is_document_num_correct(docType, docNum)),
-	balance MONEY NOT null);
+	balance MONEY NOT null DEFAULT 0 );
 
 CREATE TABLE borrows  -- Создать таблицу "Выплаты"
 (

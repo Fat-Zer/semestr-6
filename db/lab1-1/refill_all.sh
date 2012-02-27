@@ -21,6 +21,10 @@ echo "### Generating data for DB:$DB_NAME"
 python generate_data.py || die
 
 echo "### Filling DB:$DB_NAME"
-psql -d "$DB_NAME" -c "COPY cars FROM STDIN;" <"$CARS_FILE" || die
-psql -d "$DB_NAME" -c "COPY clients FROM STDIN;" <"$CLIENTS_FILE" || die
-psql -d "$DB_NAME" -c "COPY borrows FROM STDIN;" <"$BORROWS_FILE" || die
+psql -d "$DB_NAME" -c "COPY cars FROM STDIN; \
+		 SELECT setval('cars_id_seq', max(id)) FROM cars;" <"$CARS_FILE" || die
+psql -d "$DB_NAME" -c "COPY clients FROM STDIN; \
+		 SELECT setval('clients_id_seq', max(id)) FROM clients;" <"$CLIENTS_FILE" || die
+psql -d "$DB_NAME" -c "COPY borrows FROM STDIN; \
+		 SELECT setval('borrows_id_seq', max(id)) FROM borrows;" <"$BORROWS_FILE" || die
+
