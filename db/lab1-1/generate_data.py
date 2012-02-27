@@ -142,7 +142,7 @@ borrows=[]
 car_reserve_dict={}
 for i in xrange(1,generate_borrows_n):
 	borrow_start = generateDate()
-	borrow_dates = ( borrow_start, generateDate(mind=borrow_start) )
+	borrow_dates = ( borrow_start, generateDate(mind=borrow_start, dtime=datetime.timedelta(days=365)) )
 	car = random.choice(cars)[0]
 	if(car in car_reserve_dict):
 		reserved = True;
