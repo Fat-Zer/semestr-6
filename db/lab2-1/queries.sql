@@ -194,9 +194,9 @@ WHERE id = 100
 
 UPDATE cars
 SET monthprice = 	
-( SELECT "Cost Per Day"/ FROM
+( SELECT "Cost Per Day"*30 FROM
 	( SELECT cars.model, 
-	  	cast(AVG( cast(payment AS NUMERIC(32,16))
+	  	cast(AVG( cast(payment AS NUMERIC(32,16)) /
 				( CASE enddate-startdate 
 				  WHEN 0 THEN 1 
 				  ELSE (enddate-startdate) 
@@ -206,25 +206,33 @@ SET monthprice =
 	WHERE cars_avg_pay_price.model = (SELECT model FROM cars WHERE id=100))
 WHERE ID=100;
 
-20. Простая инструкция DELETE.
+-- 20. Простая инструкция DELETE.
 
-DELETE Orders
-WHERE CustomerID IS NULL
-21. Инструкция DELETE с вложенным коррелированным подзапросом в предложении WHERE.
+DELETE FROM borrows
+WHERE ID=1005;
+
+-- 21. Инструкция DELETE с вложенным коррелированным подзапросом в предложении WHERE.
 
 -- Пример для базы данных AdventureWorks
+DELETE from clients 
+WHERE ID NOT IN (SELECT DISTINCT clientID FROM borrows ) 
+	AND (balance < cast(0 AS money));
 DELETE FROM Production.Product
-WHERE ProductID IN
-(
-     		SELECT Product.ProductID
-     		FROM Production.Product LEFT OUTER JOIN Sales.SalesOrderDetail
-        		ON Product.ProductID = SalesOrderDetail.ProductID
-     		WHERE SalesOrderDetail.ProductID IS NULL
-     			AND Product.ProductSubCategoryID = 5
-  	)
-22. Инструкция SELECT, использующая простое общее табличное выражение.
 
--- Пример для базы данных SPJ
+-- 22. Инструкция SELECT, использующая простое общее табличное выражение.
+
+WITH "Avg Model Pric"(model) as
+( SELECT "Cost Per Day"*30 FROM
+	( SELECT cars.model, 
+	  	cast(AVG( cast(payment AS NUMERIC(32,16)) /
+				( CASE enddate-startdate 
+				  WHEN 0 THEN 1 
+				  ELSE (enddate-startdate) 
+				  END) ) AS NUMERIC(16,2) ) AS "Cost Per Day" 
+	FROM borrows INNER JOIN cars ON carID=cars.id
+	GROUP BY cars.model) as cars_avg_pay_price
+	WHERE cars_avg_pay_price.model = (SELECT model FROM cars WHERE id=100))
+WHERE ID=100;
 WITH CTE (SupplierNo, NumberOfShips)
 AS
 (
@@ -235,36 +243,6 @@ AS
 )
 SELECT AVG(NumberOfShips) AS 'Среднее количество поставок для поставщиков'
 FROM CTE
-23. Инструкция SELECT, использующая рекурсивное общее табличное выражение.
--- Создание таблицы.
-CREATE TABLE dbo.MyEmployees
-(
-	EmployeeID smallint NOT NULL,
-	FirstName nvarchar(30)  NOT NULL,
-	LastName  nvarchar(40) NOT NULL,
-	Title nvarchar(50) NOT NULL,
-	DeptID smallint NOT NULL,
-	ManagerID int NULL,
- 	CONSTRAINT PK_EmployeeID PRIMARY KEY CLUSTERED (EmployeeID ASC) 
-) ;
-GO
--- Заполнение таблицы значениями.
-INSERT INTO dbo.MyEmployees VALUES (1, N'Иван', N'Петров', N'Главный исполнительный директор',16,NULL) ;
-…
-GO
--- Определение ОТВ
-WITH DirectReports (ManagerID, EmployeeID, Title, DeptID, Level)
-AS
-(
--- Определение закрепленного элемента
-    SELECT e.ManagerID, e.EmployeeID, e.Title, e.DeptID, 0 AS Level
-    FROM dbo.MyEmployees AS e
-    WHERE ManagerID IS NULL
-    UNION ALL
--- Определение рекурсивного элемента
-    SELECT e.ManagerID, e.EmployeeID, e.Title, e.DeptID, Level + 1
-    FROM dbo.MyEmployees AS e INNER JOIN DirectReports AS d ON e.ManagerID = d.EmployeeID
-)
--- Инструкция, использующая ОТВ
-SELECT ManagerID, EmployeeID, Title, DeptID, Level
-FROM DirectReports ;
+
+-- 23. Инструкция SELECT, использующая рекурсивное общее табличное выражение.
+
