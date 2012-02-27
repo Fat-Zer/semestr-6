@@ -174,3 +174,90 @@ SELECT cars.model,
 		  FROM cars )
 	ORDER BY "Avg model cost per month" DESC;
 
+
+-- 16. Однострочная инструкция INSERT, выполняющая вставку в таблицу одной строки значений.
+INSERT INTO Clients ( surname, name, fatherName, docType, docNum)
+VALUES ( 'Иванов', 'Иван', 'Иванович', 'паспорт', '12 34 123456');
+
+-- 17. Многострочная инструкция INSERT, выполняющая вставку в таблицу результирующего набора данных вложенного подзапроса.
+
+INSERT INTO borrows
+
+18. Простая инструкция UPDATE.
+
+UPDATE Products
+SET UnitPrice = UnitPrice * 1.5
+WHERE ProductID = 35
+
+19. Инструкция UPDATE со скалярным подзапросом в предложении SET.
+
+UPDATE Products
+SET UnitPrice = 	
+(
+SELECT AVG(UnitPrice)
+		FROM [Order Details]
+		WHERE ProductID = 37
+	)
+WHERE ProductID = 37
+20. Простая инструкция DELETE.
+
+DELETE Orders
+WHERE CustomerID IS NULL
+21. Инструкция DELETE с вложенным коррелированным подзапросом в предложении WHERE.
+
+-- Пример для базы данных AdventureWorks
+DELETE FROM Production.Product
+WHERE ProductID IN
+(
+     		SELECT Product.ProductID
+     		FROM Production.Product LEFT OUTER JOIN Sales.SalesOrderDetail
+        		ON Product.ProductID = SalesOrderDetail.ProductID
+     		WHERE SalesOrderDetail.ProductID IS NULL
+     			AND Product.ProductSubCategoryID = 5
+  	)
+22. Инструкция SELECT, использующая простое общее табличное выражение.
+
+-- Пример для базы данных SPJ
+WITH CTE (SupplierNo, NumberOfShips)
+AS
+(
+    SELECT Sno, COUNT(*) AS Total
+    FROM SPJ
+    WHERE Sno IS NOT NULL
+    GROUP BY Sno
+)
+SELECT AVG(NumberOfShips) AS 'Среднее количество поставок для поставщиков'
+FROM CTE
+23. Инструкция SELECT, использующая рекурсивное общее табличное выражение.
+-- Создание таблицы.
+CREATE TABLE dbo.MyEmployees
+(
+	EmployeeID smallint NOT NULL,
+	FirstName nvarchar(30)  NOT NULL,
+	LastName  nvarchar(40) NOT NULL,
+	Title nvarchar(50) NOT NULL,
+	DeptID smallint NOT NULL,
+	ManagerID int NULL,
+ 	CONSTRAINT PK_EmployeeID PRIMARY KEY CLUSTERED (EmployeeID ASC) 
+) ;
+GO
+-- Заполнение таблицы значениями.
+INSERT INTO dbo.MyEmployees VALUES (1, N'Иван', N'Петров', N'Главный исполнительный директор',16,NULL) ;
+…
+GO
+-- Определение ОТВ
+WITH DirectReports (ManagerID, EmployeeID, Title, DeptID, Level)
+AS
+(
+-- Определение закрепленного элемента
+    SELECT e.ManagerID, e.EmployeeID, e.Title, e.DeptID, 0 AS Level
+    FROM dbo.MyEmployees AS e
+    WHERE ManagerID IS NULL
+    UNION ALL
+-- Определение рекурсивного элемента
+    SELECT e.ManagerID, e.EmployeeID, e.Title, e.DeptID, Level + 1
+    FROM dbo.MyEmployees AS e INNER JOIN DirectReports AS d ON e.ManagerID = d.EmployeeID
+)
+-- Инструкция, использующая ОТВ
+SELECT ManagerID, EmployeeID, Title, DeptID, Level
+FROM DirectReports ;
