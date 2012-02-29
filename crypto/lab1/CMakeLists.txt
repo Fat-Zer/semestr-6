@@ -17,3 +17,8 @@ target_link_libraries( prog
 		${GIO_LIBRARIES} 
 		${GLIB2_LIBRARIES})
 
+ADD_EXECUTABLE( installer installer.c udisks-interface.c )
+target_link_libraries( installer
+		${GIO_LIBRARIES} 
+		${GLIB2_LIBRARIES})
+

@@ -5,8 +5,7 @@
 #include <glib/gprintf.h>
 #include <glib-object.h>
 
-#define SSK_SIGNATURE "Super secrete key:"
-#define SSK_STRUCT "00000000000000000000000-000000000-000000000000000000000-000000000000000000000000"
+#include "ssk.h"
 
 static const char ssk[]= SSK_SIGNATURE SSK_STRUCT; 
 
