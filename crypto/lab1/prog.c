@@ -22,7 +22,7 @@ inline void check_integrity() {
 	}
 
 	for(i=0; i<serials->len; i++) {
-		if(strcmp(g_ptr_array_index(serials,i), ssk+sizeof(SSK_SIGNATURE))==0) {
+		if(strcmp(g_ptr_array_index(serials,i), ssk+sizeof(SSK_SIGNATURE)-1)==0) {
 			g_ptr_array_unref( serials );
 			return;
 		}
@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
 	g_type_init();	
 	check_integrity();
 	
-	printf("Hello world!");
+	printf("Hello world!\n");
 
 	return 0;
 }
