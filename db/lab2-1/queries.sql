@@ -180,25 +180,32 @@ INSERT INTO Clients ( surname, name, fatherName, docType, docNum)
 VALUES ( 'Иванов', 'Иван', 'Иванович', 'паспорт', '12 34 123456');
 
 -- 17. Многострочная инструкция INSERT, выполняющая вставку в таблицу результирующего набора данных вложенного подзапроса.
+INSERT INTO borrows (carid, clientid, startdate, enddate, payment, payedoff)
+SELECT carid, clientid, current_date, current_date + interval '10 days' ,payment, false
+	FROM borrows where payment=(SELECT max(payment) FROM borrows) limit 1;
 
-INSERT INTO borrows
+-- 18. Простая инструкция UPDATE.
 
-18. Простая инструкция UPDATE.
+UPDATE cars
+SET monthprice = 100
+WHERE id = 100
 
-UPDATE Products
-SET UnitPrice = UnitPrice * 1.5
-WHERE ProductID = 35
+-- 19. Инструкция UPDATE со скалярным подзапросом в предложении SET.
 
-19. Инструкция UPDATE со скалярным подзапросом в предложении SET.
+UPDATE cars
+SET monthprice = 	
+( SELECT "Cost Per Day"/ FROM
+	( SELECT cars.model, 
+	  	cast(AVG( cast(payment AS NUMERIC(32,16))
+				( CASE enddate-startdate 
+				  WHEN 0 THEN 1 
+				  ELSE (enddate-startdate) 
+				  END) ) AS NUMERIC(16,2) ) AS "Cost Per Day" 
+	FROM borrows INNER JOIN cars ON carID=cars.id
+	GROUP BY cars.model) as cars_avg_pay_price
+	WHERE cars_avg_pay_price.model = (SELECT model FROM cars WHERE id=100))
+WHERE ID=100;
 
-UPDATE Products
-SET UnitPrice = 	
-(
-SELECT AVG(UnitPrice)
-		FROM [Order Details]
-		WHERE ProductID = 37
-	)
-WHERE ProductID = 37
 20. Простая инструкция DELETE.
 
 DELETE Orders

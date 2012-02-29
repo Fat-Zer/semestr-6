@@ -8,7 +8,6 @@ SELECT
 ($1='загранпаспорт' ) AND ($2 ~'^[0-9]{2} [0-9]{7}$' );
 $$ LANGUAGE SQL;
 
-CREATE OR REPLACE FUNCTION is_
 
 CREATE TABLE cars  -- Создать таблицу 
 (
