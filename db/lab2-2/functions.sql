@@ -27,7 +27,7 @@ BEGIN
 	WHILE i<num LOOP
 		f1:=f2+f1;
 		f2:=f2+f1;
-		i=i+2;
+		i:=i+2;
 	END LOOP;
 	IF (i%2=0) THEN 
 		RETURN f1;
