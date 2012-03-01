@@ -26,7 +26,8 @@ CREATE TABLE clients -- Создать таблицу "Клиенты"
 	fatherName VARCHAR (100) NOT NULL,
 	docType  TPersonalDoc,
 	docNum VARCHAR(12) CHECK (is_document_num_correct(docType, docNum)),
-	balance MONEY NOT null DEFAULT 0 );
+	balance MONEY NOT null DEFAULT 0,
+	referalClient INT REFERENCES clients DEFAULT Null);
 
 CREATE TABLE borrows  -- Создать таблицу "Выплаты"
 (

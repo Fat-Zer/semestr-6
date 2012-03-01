@@ -132,7 +132,11 @@ for i in xrange(1,generate_clients_n):
 		family = random.choice(familys)[gender_woman]
 		father_name = random.choice(father_names)[gender_woman]
 	balance=random.randint(min_balance, max_balance)
-	clients.append((str(i), family, name, father_name, document, number, str(balance)))
+	if( random.randint(0,100)==0 ):
+		referal = str(random.randint(0, i-1))
+	else:
+		referal = '\N'
+	clients.append((str(i), family, name, father_name, document, number, str(balance), referal))
 	
 document_set=set()
 	
