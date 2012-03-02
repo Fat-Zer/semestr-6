@@ -29,7 +29,7 @@ BEGIN
 		f2:=f2+f1;
 		i:=i+2;
 	END LOOP;
-	IF (i%2=0) THEN 
+	IF num%2=0 THEN 
 		RETURN f1;
 	ELSE
 		RETURN f2;
@@ -53,14 +53,30 @@ END
 $$ LANGUAGE plpgsql;
 
 -- 3) Многооператорную табличную функцию
-
-CREATE OR REPLACE FUNCTION () 
-RETURNS TABLE(name AS , surname AS , fathername AS ) 
-AS $$
-	
-$$
+--CREATE OR REPLACE FUNCTION () 
+--RETURNS TABLE(name AS , surname AS , fathername AS ) 
+--AS $$
+--	
+--$$
 
 -- 4) Рекурсивную функцию или функцию с рекурсивным ОТВ
+CREATE OR REPLACE FUNCTION allReferals(clientID Clients.ID%TYPE) 
+RETURNS TABLE(model cars.model%TYPE, "avg payed" MONEY) AS $$
+BEGIN
+	RETURN QUERY WITH RECURSIVE AllReferalsCTE (id, surname, name, fathername, referalClient, level) AS 
+	( -- Определение закрепленного элемента
+	    SELECT clients.ID, name, fathername, surname, referalClient, 0 as level
+	    FROM Clients
+	    WHERE ID=ClientID
+	    UNION ALL
+	-- Определение рекурсивного элемента
+	    SELECT c.ID, c.name, c.fathername, c.surname, c.referalClient, r.level+1
+	    FROM Clients AS c INNER JOIN AllReferalsCTE AS r ON c.ID = r.referalClient )
+	-- Инструкция, использующая ОТВ
+	SELECT * FROM AllReferalsCTE;
+END
+$$ LANGUAGE plpgsql;
+
 -- B. Четыре хранимых процедуры
 -- 1) Хранимую процедуру без параметров
 -- 2) Хранимую процедуру с входными и выходными параметрами
