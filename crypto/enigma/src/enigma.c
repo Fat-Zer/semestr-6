@@ -7,6 +7,14 @@
 
 typedef unsigned char uchar;
 
+unsigned my_rand() {
+	FILE* f=fopen("/dev/random","r");
+	unsigned rv;
+	fread(&rv, sizeof(rv), 1,f);
+	fclose(f);
+	return rv;
+}
+
 int enigma_gen(struct enigma *eng)
 {
 	int i;
@@ -84,7 +92,7 @@ int transpos_gen(uchar *arr, int sz)
 
 	for(i=0; i<sz; i++)
 	{
-		j=rand()%(i+1);
+		j=my_rand()%(i+1);
 		arr[i]=arr[j];
 		arr[j]=i;
 	}
