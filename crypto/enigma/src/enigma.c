@@ -277,4 +277,3 @@ void enigma_rotate_rotors(struct enigma *eng, size_t n)
 		n /= ROTOR_SZ;
 	}
 }
-

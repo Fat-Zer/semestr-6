@@ -4,7 +4,8 @@
 #include "enigma.h"
 #include "cli_utils.h"
 
-#define STANDERT_KEY_FILE "$HOME/.engkey"
+#define DEFAULT_KEY_NAME ".engkey"
+#define STANDERT_KEY_FILE "$HOME/" DEFAULT_KEY_NAME
 #define CRITICAL_ERROR(code,...) { fprintf(stderr, __VA_ARGS__); exit(code); }
 
 void engcrypt_parse_params(int argc, char **argv);
@@ -120,10 +121,19 @@ void open_key_file()
 
 void open_default_key_file()
 {
-	sd.key_file = fopen(STANDERT_KEY_FILE, "rb");
-	if(!sd.key_file)
+			// set default file name
+	char *h = getenv("HOME");
+	int h_len = strlen(h);
+	char *tmp = malloc(h_len + strlen("DEFAULT_KEY_NAME") + 2);
+	strcpy(tmp, h);
+	tmp[h_len] = '/';
+	strcpy(tmp + h_len + 1, DEFAULT_KEY_NAME);
+	sd.key_file = fopen(tmp, "rb");
+	free(tmp);
+	if(!sd.key_file ) {
 		CRITICAL_ERROR(2,"Can't open default key file \"%s\"\n",
 						STANDERT_KEY_FILE);
+	}
 }
 
 void open_inp_file()
