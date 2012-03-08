@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include <getopt.h>
+#include <errno.h>
 #include "aes.h"
 
 void inv_mix_single_column(uint8_t *column);
@@ -110,68 +112,67 @@ int main(int argc, char **argv)
 		int scnd=0;
 		switch (key_lng) {
 		case 256:
-			scnd += sscanf(key_str+9*7-1,"-%02x%02x%02x%02x", 
-				user_key[4*7], &user_key[4*7+1], 
-				user_key[4*7+2], &user_key[4*7+3]);
-
-			scnd += sscanf(key_str+9*6-1,"-%02x%02x%02x%02x-", 
+			scnd += sscanf(key_str+9*7-1,"-%02hhx%02hhx%02hhx%02hhx", 
+				&user_key[4*7], &user_key[4*7+1], 
+				&user_key[4*7+2], &user_key[4*7+3]);
+			scnd += sscanf(key_str+9*6-1,"-%02hhx%02hhx%02hhx%02hhx-", 
 				&user_key[4*6], &user_key[4*6+1], 
 				&user_key[4*6+2], &user_key[4*6+3]);
 			scnd -=8;
 		case 192:
-			scnd += sscanf(key_str+9*5-1,"-%02x%02x%02x%02x-", 
+			scnd += sscanf(key_str+9*5-1,"-%02hhx%02hhx%02hhx%02hhx-", 
 				&user_key[4*5], &user_key[4*5+1], 
 				&user_key[4*5+2], &user_key[4*5+3]);
-			scnd += sscanf(key_str+9*4-1,"-%02x%02x%02x%02x-", 
+			scnd += sscanf(key_str+9*4-1,"-%02hhx%02hhx%02hhx%02hhx-", 
 				&user_key[4*4], &user_key[4*4+1], 
 				&user_key[4*4+2], &user_key[4*4+3]);
-			scnd -=8
+			scnd -=8;
 		case 128:
-			scnd += sscanf(key_str+9*3-1,"-%02x%02x%02x%02x-", 
+			scnd += sscanf(key_str+9*3-1,"-%02hhx%02hhx%02hhx%02hhx-", 
 				&user_key[4*3], &user_key[4*3+1], 
 				&user_key[4*3+2], &user_key[4*3+3]);
-			scnd += sscanf(key_str+9*2-1,"-%02x%02x%02x%02x-", 
+			scnd += sscanf(key_str+9*2-1,"-%02hhx%02hhx%02hhx%02hhx-", 
 				&user_key[4*2], &user_key[4*2+1], 
 				&user_key[4*2+2], &user_key[4*2+3]);
-			scnd += sscanf(key_str+9*1-1,"-%02x%02x%02x%02x-", 
+			scnd += sscanf(key_str+9*1-1,"-%02hhx%02hhx%02hhx%02hhx-", 
 				&user_key[4*1], &user_key[4*1+1], 
 				&user_key[4*1+2], &user_key[4*1+3]);
-			scnd += sscanf(key_str+9*0,"%02x%02x%02x%02x-", 
+			scnd += sscanf(key_str+9*0,"%02hhx%02hhx%02hhx%02hhx-", 
 				&user_key[4*0], &user_key[4*0+1], 
 				&user_key[4*0+2], &user_key[4*0+3]);
 			break;
 		default:
 			fprintf(stderr,"No key_str set\n");
-			usage();
+			usage(argv[0]);
 			exit(3);
 		} 
 		if(scnd!=16) {
 			fprintf(stderr,"Bad key_str.\n");
-			usage();
+			usage(argv[0]);
 			exit(4);
 		}
 	}
 
-	if(ifile=0 || strcmp(ifile,"-")) {
+	if(ifile==0 || strcmp(ifile,"-")) {
 		is = stdin;
 	} else {
 		is = fopen(ifile,"r");
 		if(!is) {
 			fprintf(stderr,"Failed to open input file:%s.\n"
-			"Reason:%s\n", ifile strerr(errno));
-			usage();
+			"Reason:%s\n", ifile, strerror(errno));
+			usage(argv[0]);
 			exit(5);
 		}
 	}
 	
-	if(ofile=0 || strcmp(ofile,"-")) {
+	if(ofile==0 || strcmp(ofile,"-")) {
 		os = stdout;
 	} else {
 		os = fopen(ofile,"w");
 		if(!os) {
 			fprintf(stderr,"Failed to open output file:%s.\n"
-			"Reason:%s\n", ofile strerr(errno));
-			usage();
+			"Reason:%s\n", ofile, strerror(errno));
+			usage(argv[0]);
 			exit(6);
 		}
 	}
@@ -186,7 +187,7 @@ int main(int argc, char **argv)
 	MYAES_encrypt(block, target, &my_key);
 	
 	MYAES_set_decrypt_key(user_key, 4, &my_key);
-	MYAES_decrypt(target, dtarget, &my_key);
+//	MYAES_decrypt(target, dtarget, &my_key);
 	
 	return 0;
 }
