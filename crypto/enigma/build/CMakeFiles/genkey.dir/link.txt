@@ -1,1 +1,0 @@
-/usr/bin/gcc  -g   CMakeFiles/genkey.dir/src/genkey.c.o CMakeFiles/genkey.dir/src/enigma.c.o CMakeFiles/genkey.dir/src/cli_utils.c.o CMakeFiles/genkey.dir/src/bit_array.c.o  -o genkey -rdynamic 
