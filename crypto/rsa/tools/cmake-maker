@@ -1,42 +1,35 @@
 #!/bin/bash
 echo $*
+SRC_DIR="$PWD"
+PROJECT_NAME="$(sed -rne'/PROJECT *\( *([^ ]*) *\) *$/{Is//\1/;p}' CMakeLists.txt)"
+BUILD_DIR="/tmp/${PROJECT_NAME}-build"
+CFLAGS="-Wall -g -O0"
+# CXXFLAGS=$CFLAGS
+# MAKE_PARAMS="VERBOSE=1"
 
-PROJECT="$(sed -rn '/project *\((.*)\)/{s//\1/;p}' CMakeLists.txt)"
-echo "Project      : ${PROJECT:=$(basename $PWD)}"
-echo "Binary dir   : ${BIN_DIR:="/tmp/cmake-maker/$PROJECT"}"
-echo "Source dir   : ${SRC_DIR:="$PWD"}"
-echo "CFlags       : ${CFLAGS}"
-echo "CXXFlags     : ${CXXFLAGS}"
-echo "Target       : ${CMAKE_TARGET:="Debug"}"
-echo "Make options : ${MAKE_OPTS:="VERBOSE=1"}"
-echo
-
-[[ -n "$CFLAGS" ]] && CMAKE_OPTS=("-DCMAKE_C_FLAGS=$CFLAGS")
-[[ -n "$CXXFLAGS" ]] && CMAKE_OPTS+=("-DCMAKE_CXX_FLAGS=$CXXFLAGS")
-[[ -n "$CMAKE_TARGET" ]] && CMAKE_OPTS+=("-DCMAKE_BUILD_TYPE=$CMAKE_TARGET")
-# [[ -n "$BIN_DIR" ]] && CMAKE_OPTS+=("-DCMAKE_BINARY_DIR=$BIN_DIR")
-# [[ -n "$SRC_DIR" ]] && CMAKE_OPTS+=("DCMAKE_SOURCE_DIR=$SRC_DIR" )
-
-if [ "$1" = "veryclean" ]; then
- 	echo -n "Removing $BINDIR: "
-	rm -rf "$BIN_DIR"
-	echo "done" 
- 	exit 0
+# CMAKE_OPTS=( "" )
+if [ -n "$CFLAGS" ]; then
+	CMAKE_OPTS=( ${CMAKE_OPTS[@]} "-DCMAKE_C_FLAGS=$CFLAGS" )
 fi
- 
-mkdir -p $BIN_DIR
-if [ ! -f "$BIN_DIR/Makefile" -o \
-	"${BIN_DIR}/Makefile" -ot "$SRC_DIR/CMakeList.txt" ]; then
-    rm -rf "$BIN_DIR"/{Makefile,CMake*}
-	if [ ! -e "$SRC_DIR/CMakeLists.txt" ]; then
+
+if [ -n "$CXXFLAGS" ]; then
+	CMAKE_OPTS=( ${CMAKE_OPTS[@]} "-DCMAKE_CXX_FLAGS=$CXXFLAGS")
+fi
+
+if [ ! -f $BUILD_DIR/Makefile -o Makefile -ot ../CMakeList.txt ]; then
+    if [ -e CMakeLists.txt ]; then
+        mkdir -p $BUILD_DIR
+        cd $SRC_DIR
+	else
 		echo '!!! NO CmakeList.txt found !!!'
 		exit 1
     fi
-
-	cd "$BIN_DIR" && cmake "${CMAKE_OPTS[@]}" "$SRC_DIR" || exit $?
 fi
 
-cd "$BIN_DIR"
-make $MAKE_OPTS $* && (echo; echo "===== Great! Everything ok! ====="; echo;)
+cd $BUILD_DIR
+cmake "${CMAKE_OPTS[@]}" "$SRC_DIR" || exit $?
 
+
+cd $BUILD_DIR
+make $MAKE_PARAMS $*
 exit $?

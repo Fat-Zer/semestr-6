@@ -2,62 +2,67 @@
 #include <stdlib.h>
 #include <string.h>
 #include "enigma.h"
-#include "cli_utils.h"
+// #include "cli_utils.h"
 
-#define CRITICAL_ERROR(str,code) { fprintf(stderr,str); exit(code); }
-#define STANDERT_KEY_FILE "$HOME/.engkey"
+#define CRITICAL_ERROR(str,code) do { fprintf(stderr,str); exit(code); } while(0)
 
-void print_usege()
+#define DEFAULT_KEY_NAME ".engkey"
+#define STANDERT_KEY_FILE "$HOME/" DEFAULT_KEY_NAME
+
+void print_usage()
 {
 	fprintf(stderr, "Usege: genkey [key_file]\n"
-			"\tif no key_file named used default key file("STANDERT_KEY_FILE")\n"
-			"\tif a single hyphen-minus (-) is given as a key_file) stdout is used\n");
+			"\tif no key_file named used the default key file(%s)\n"
+			"\tif a single hyphen-minus (-) is given as a key_file) stdout is used\n", STANDERT_KEY_FILE);
 }
 
-FILE* open_key_file(char *kf)
+inline FILE* open_key_file(char *kf)
 {
 //	if(!kf)
 //		return 0;
 	return fopen(kf,"wb");
 }
 
+
 int main(int argc, char *argv[])
 {
 	struct enigma eng;
-	FILE *fd=stdout; 
-	char *key_fname=0;
-	struct param_descr param_descr[] = {
-		{'k',	"key",	{PA_GET_STRING,&key_fname}},
-		{0,		0} };
-	struct param_action default_acts[] = {
-		{0,		0} };
-	int tmp;
-
-	char* def_file = malloc(var_subst_len(STANDERT_KEY_FILE));
-	var_subst(def_file,STANDERT_KEY_FILE,0);
-
-	tmp = parse_params(argv, param_descr, default_acts);
-	if(tmp!=argc)
-	{
-		fprintf(stderr, "error in parameter %d: \"%s\"\n", tmp, argv[tmp]);
-		
-		print_usege();
-		return 1;
+	FILE *fd = 0; 
+	
+	if(argc==2) {
+		if(strcmp("-", argv[1])==0) {
+			fd = stdout;
+		} else {
+			fd = open_key_file(argv[1]);
+			if(!fd) {
+				printf("error opening key file: \"%s\"\n", argv[1]);
+			}
+		}
+	} else if(argc==1) {
+		// set default file name
+		char *h = getenv("HOME");
+		int h_len = strlen(h);
+		char *tmp = malloc(h_len + strlen("DEFAULT_KEY_NAME") + 2);
+		strcpy(tmp, h);
+		tmp[h_len] = '/';
+		strcpy(tmp + h_len + 1, DEFAULT_KEY_NAME);
+		fd = open_key_file(tmp);
+		if(!fd) {
+			printf("error opening key file: \"%s\"\n", tmp);
+		}
+		free(tmp);
+	} else { // argc>2
+		print_usage();
+		exit(1);
 	}
-	if(!key_fname) {
-		if(!(fd=open_key_file(STANDERT_KEY_FILE)))
-			CRITICAL_ERROR("Can't open key file.\n",2)
-	} else if(strcmp(key_fname,"-")!=0)
-		if(!(fd=open_key_file(key_fname)))
-			CRITICAL_ERROR("Can't open key file.\n",2)
+	if(!fd) {
+		exit(2);
+	}
 
-	if(enigma_gen(&eng))
-		CRITICAL_ERROR("Can't generate enigma key.\n",3)
+	if(enigma_gen(&eng)!=0)
+		CRITICAL_ERROR("Can't generate enigma key.\n",3);
 	if(enigma_fwrite(fd, &eng))
-		CRITICAL_ERROR("Can't write key.\n",4)
+		CRITICAL_ERROR("Can't write key.\n",4);
 	
 	return 0;
-
 }
-
-

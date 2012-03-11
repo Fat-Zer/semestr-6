@@ -1,35 +1,35 @@
 #!/bin/bash
 echo $*
-export OBJ_SUBDIR=build
-export CFLAGS="-Wall -g -O0"
-export CXXFLAGS=$CFLAGS
+SRC_DIR="$PWD"
+PROJECT_NAME="$(sed -rne'/PROJECT *\( *([^ ]*) *\) *$/{Is//\1/;p}' CMakeLists.txt)"
+BUILD_DIR="/tmp/${PROJECT_NAME}-build"
+CFLAGS="-Wall -g -O0"
+# CXXFLAGS=$CFLAGS
 # MAKE_PARAMS="VERBOSE=1"
 
-CMAKE_OPTS=""
+# CMAKE_OPTS=( "" )
 if [ -n "$CFLAGS" ]; then
-	CMAKE_OPTS="$CMAKE_OPTS -DCMAKE_C_FLAGS=$CFLAGS"
+	CMAKE_OPTS=( ${CMAKE_OPTS[@]} "-DCMAKE_C_FLAGS=$CFLAGS" )
 fi
 
 if [ -n "$CXXFLAGS" ]; then
-	CMAKE_OPTS="$CMAKE_OPTS -DCMAKE_CXX_FLAGS=$CXXFLAGS"
+	CMAKE_OPTS=( ${CMAKE_OPTS[@]} "-DCMAKE_CXX_FLAGS=$CXXFLAGS")
 fi
 
-if [ ! -f $OBJ_SUBDIR/Makefile -o Makefile -ot ../CMakeList.txt ]; then
+if [ ! -f $BUILD_DIR/Makefile -o Makefile -ot ../CMakeList.txt ]; then
     if [ -e CMakeLists.txt ]; then
-        if [ -d build ]; then
-            cd $OBJ_SUBDIR
-            rm -f CMakeCache.txt Makefile
-        else
-            mkdir $OBJ_SUBDIR
-            cd $OBJ_SUBDIR
-        fi
-        cmake $CMAKE_OPTS .. || exit $?
-        cd ..
+        mkdir -p $BUILD_DIR
+        cd $SRC_DIR
 	else
 		echo '!!! NO CmakeList.txt found !!!'
 		exit 1
     fi
 fi
-cd $OBJ_SUBDIR
+
+cd $BUILD_DIR
+cmake "${CMAKE_OPTS[@]}" "$SRC_DIR" || exit $?
+
+
+cd $BUILD_DIR
 make $MAKE_PARAMS $*
 exit $?

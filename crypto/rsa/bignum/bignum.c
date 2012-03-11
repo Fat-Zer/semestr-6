@@ -20,6 +20,12 @@ bignum_t* BN_new() {
 	return rv;
 }
 
+void BN_init(bignum_t *num) {
+	num->d=0;
+	num->w=0;
+	num->sz=0;
+}
+
 void BN_deinit(bignum_t *num) {
 	if(num->d) {
 		free(num->d);
@@ -39,7 +45,9 @@ void BN_free(bignum_t* num) {
 BN_error_t BN_set_width(bignum_t* num, size_t new_w) {
 	BN_error_t rc=0;
 
-	if(new_w > num->w) {
+	if(new_w < 1) { // forbit negative and zero width
+		rc = BN_WIDTH_CANT_BE_ZERO;
+	} else if(new_w > num->w) {
 		BN_word_t *new_d;
 		size_t new_sz;
 	
@@ -90,18 +98,16 @@ bignum_t* BN_zero(bignum_t* num) {
 }
 
 bignum_t* BN_cpy(bignum_t* num, bignum_t* from) {
-	if(num->w!=0) {
-		size_t cpy_cnt=BN_NEED_WORDS(MY_MAX(num->w,from->w))*sizeof(BN_word_t);
-		memcpy(num->d, from->d, cpy_cnt*sizeof(BN_word_t));
-	}
+	size_t cpy_cnt=BN_NEED_WORDS(MY_MAX(num->w,from->w))*sizeof(BN_word_t);
+	memcpy(num->d, from->d, cpy_cnt*sizeof(BN_word_t));
+
 	return num;
 }
 
 bignum_t* BN_cpyw(bignum_t* num, BN_word_t from) {
-	if(num->w!=0) {
-		*(num->d) = from;
-		BN_zero_head(num, sizeof(BN_word_t));
-	}
+	*(num->d) = from;
+	BN_zero_head(num, sizeof(BN_word_t));
+
 	return num;
 }
 /*
@@ -121,24 +127,22 @@ bignum_t* BN_cpysw(bignum_t* num, BN_signed_word_t from) {
 //================= inc/dev functions =========================================
 
 bignum_t* BN_inc(bignum_t* num) {
-	if(num->w!=0) {
-		size_t i;
+	size_t i;
 	
-		(*num->d)++;
-		for(i=1; (i < BN_NEED_WORDS(num->w) - 1) && (num->d[i-1]==0); i++)
-			num->d[i]++;
-	}
+	(*num->d)++;
+	for(i=1; (i < BN_NEED_WORDS(num->w) - 1) && (num->d[i-1]==0); i++)
+		num->d[i]++;
+	
 	return num;
 }
 
 bignum_t* BN_dec(bignum_t* num) {
-	if(num->w!=0) {
-		size_t i;
+	size_t i;
 	
-		(*num->d)--;
-		for(i=1; (i < BN_NEED_WORDS(num->w) - 1) && (num->d[i-1]==BN_WORD_MAX); i++)
-			num->d[i]--;
-	}
+	(*num->d)--;
+	for(i=1; (i < BN_NEED_WORDS(num->w) - 1) && (num->d[i-1]==BN_WORD_MAX); i++)
+		num->d[i]--;
+
 	return num;
 }
 

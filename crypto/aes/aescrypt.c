@@ -1,64 +1,194 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
-// #include <openssl/aes.h>
+#include <string.h>
+#include <getopt.h>
+#include <errno.h>
 #include "aes.h"
-#include "debug.h"
-
-#define test_block_print_error(i, ok, label, model, my) \
-	do { \
-		printf("Tesing %s: ", label); \
-		for((i=0), (ok=1); i<0x100; i++) \
-			if(model[i]!=my[i]) { \
-				printf ("\n%02X should be %02X but it's %02X", i, model[i], my[i]); \
-				ok=0; \
-			} \
-		if(!ok) { \
-			puts(""); \
-			print_block(label, 0x100 ,0x10, my, " ", "\n"); \
-			return -1; \
-		} else { \
-			printf("%s ok\n", label); \
-		} \
-	} while(0)
 
 void inv_mix_single_column(uint8_t *column);
 
+void usage(char * argv0) {
+	fprintf(stderr,"Usage: %s -uhde --key_str <key_str> --128 --192 --256\n"
+	"--ifile <input_file> --ofile <output_file>\n", argv0);
+}
+
+void help(char * argv0) {
+	usage(argv0);
+	fprintf(stderr,
+		"-u\t--usage\tshow usage message\n"
+		"-h\t--help\tshow this help message\n"
+		"-e\t--encrypt\tperform encription rather than decription\n"
+		"-d\t--decrypt\tperform decription rather than encription\n"
+		"-k\t--ofile <key_str>\tset key_str>\n"
+		"-i\t--ifile <input file>\tset input file>\n"
+		"-o\t--ofile <output file>\tset output file>\n"
+		"\t\t--128\tuse 128-bit key_str\n"
+		"\t\t--192\tuse 192-bit key_str\n"
+		"\t\t--256\tuse 256-bit key_str\n");
+}
+
 int main(int argc, char **argv)
 {
-	uint8_t block[16] = {
-		0x32, 0x43, 0xf6, 0xa8,
-		0x88, 0x5a, 0x30, 0x8d,
-		0x31, 0x31, 0x98, 0xa2,
-		0xe0, 0x37, 0x07, 0x34};
- 	
-	uint8_t user_key[32] = {
-		0x2b, 0x7e, 0x15, 0x16,
-		0x28, 0xae, 0xd2, 0xa6,
-		0xab, 0xf7, 0x15, 0x88,
-		0x09, 0xcf, 0x4f, 0x3c};
-	uint8_t target[16];
-	uint8_t dtarget[16];
+	FILE *is;
+	FILE *os;
+	bool usage_flag=0, help_flag=0;
+	bool decrypt=0;
+	char* key_str=0;
+	char* ifile=0;
+	char* ofile=0;
+	size_t key_lng=128;
+	uint8_t user_key[32] = {};
 	MYAES_KEY my_key;
+	
+	while (1) {
+		int option_index = 0;
+		static struct option long_options[] = {
+			{"key_str",		required_argument,	0,  'k' },
+			{"usage",	no_argument,		0,  'u' },
+			{"128",		no_argument,		0,  '4' },
+			{"192",		no_argument,		0,  '6' },
+			{"256",		no_argument,		0,  '8' },
+			{"encrypt",	no_argument,		0,  'e' },
+			{"decrypt",	no_argument,		0,  'd' },
+			{"help",	no_argument,		0,  'h' },
+			{"ifile",	required_argument,	0,  'i' },
+			{"ofile",	required_argument,	0,  'o' },
+			{0,			0,					0,  0 }};
+		const char *opt_string="uhdek:i:o:";
+		char c;
+		c = getopt_long(argc, argv, opt_string,
+						long_options, &option_index);
+		if (c == -1)
+			break;
 
-//	uint8_t target2[16];
-//	uint8_t dtarget2[16];
-//	AES_KEY key;
+		switch (c) {
+		case 'u':
+			usage_flag=1;
+			break;
+		case 'h':
+			help_flag=1;
+			break;
+		case 'd':
+			decrypt=1;
+			break;
+		case 'e':
+			decrypt=0;
+			break;
+		case 'k':
+			key_str=optarg;
+			break;
+		case 'i':
+			ifile=optarg;
+			break;
+		case 'o':
+			ofile=optarg;
+			break;
+		case '4':
+			key_lng=128;
+			break;
+		case '6':
+			key_lng=192;
+			break;
+		case '8':
+			key_lng=256;
+			ofile=optarg;
+			break;
+		default:
+			usage(argv[0]);
+			exit(1);
+		}
+	}
+
+	if(help_flag) {
+		help(argv[0]);
+	} else if(usage_flag) {
+		usage(argv[0]);
+	} else if(!key_str) {
+		fprintf(stderr,"No key_str set\n");
+		usage(argv[0]);
+		exit(2);
+	} else {
+		int scnd=0;
+		switch (key_lng) {
+		case 256:
+			scnd += sscanf(key_str+9*7-1,"-%02hhx%02hhx%02hhx%02hhx", 
+				&user_key[4*7], &user_key[4*7+1], 
+				&user_key[4*7+2], &user_key[4*7+3]);
+			scnd += sscanf(key_str+9*6-1,"-%02hhx%02hhx%02hhx%02hhx-", 
+				&user_key[4*6], &user_key[4*6+1], 
+				&user_key[4*6+2], &user_key[4*6+3]);
+			scnd -=8;
+		case 192:
+			scnd += sscanf(key_str+9*5-1,"-%02hhx%02hhx%02hhx%02hhx-", 
+				&user_key[4*5], &user_key[4*5+1], 
+				&user_key[4*5+2], &user_key[4*5+3]);
+			scnd += sscanf(key_str+9*4-1,"-%02hhx%02hhx%02hhx%02hhx-", 
+				&user_key[4*4], &user_key[4*4+1], 
+				&user_key[4*4+2], &user_key[4*4+3]);
+			scnd -=8;
+		case 128:
+			scnd += sscanf(key_str+9*3-1,"-%02hhx%02hhx%02hhx%02hhx-", 
+				&user_key[4*3], &user_key[4*3+1], 
+				&user_key[4*3+2], &user_key[4*3+3]);
+			scnd += sscanf(key_str+9*2-1,"-%02hhx%02hhx%02hhx%02hhx-", 
+				&user_key[4*2], &user_key[4*2+1], 
+				&user_key[4*2+2], &user_key[4*2+3]);
+			scnd += sscanf(key_str+9*1-1,"-%02hhx%02hhx%02hhx%02hhx-", 
+				&user_key[4*1], &user_key[4*1+1], 
+				&user_key[4*1+2], &user_key[4*1+3]);
+			scnd += sscanf(key_str+9*0,"%02hhx%02hhx%02hhx%02hhx-", 
+				&user_key[4*0], &user_key[4*0+1], 
+				&user_key[4*0+2], &user_key[4*0+3]);
+			break;
+		default:
+			fprintf(stderr,"No key_str set\n");
+			usage(argv[0]);
+			exit(3);
+		} 
+		if(scnd!=16) {
+			fprintf(stderr,"Bad key_str.\n");
+			usage(argv[0]);
+			exit(4);
+		}
+	}
+
+	if(ifile==0 || strcmp(ifile,"-")) {
+		is = stdin;
+	} else {
+		is = fopen(ifile,"r");
+		if(!is) {
+			fprintf(stderr,"Failed to open input file:%s.\n"
+			"Reason:%s\n", ifile, strerror(errno));
+			usage(argv[0]);
+			exit(5);
+		}
+	}
 	
-	print_block_paralel("block", 1, 0x10 ,4, block);
+	if(ofile==0 || strcmp(ofile,"-")) {
+		os = stdout;
+	} else {
+		os = fopen(ofile,"w");
+		if(!os) {
+			fprintf(stderr,"Failed to open output file:%s.\n"
+			"Reason:%s\n", ofile, strerror(errno));
+			usage(argv[0]);
+			exit(6);
+		}
+	}
 	
-//	AES_set_encrypt_key(user_key, 128, &key);
-//	AES_encrypt(block, target1, &key);
+
 	MYAES_set_encrypt_key(user_key, 4, &my_key);
+	uint8_t block[16] = {};
+ 	
+	uint8_t target[16];
+
 
 	MYAES_encrypt(block, target, &my_key);
-	print_block_paralel("encrypted", 1, 0x10 ,4, target);
 	
-//	AES_set_decrypt_key(user_key, 128, &key);
-//	AES_decrypt(target1, dtarget1, &key);
 	MYAES_set_decrypt_key(user_key, 4, &my_key);
-	MYAES_decrypt(target, dtarget, &my_key);
-	
-	print_block_paralel("decripted", 1, 0x10 ,4, dtarget);
+//	MYAES_decrypt(target, dtarget, &my_key);
 	
 	return 0;
 }
+

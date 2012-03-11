@@ -2,12 +2,13 @@ CC = gcc
 CFLAGS = -Wall -g -DAES_TABLE_ENCRIPTION
 # CFLAGS = -Wall -O2
 
-# aescrypt_LDFLAGS = -lcrypto
-aescrypt_OBJECTS = aescrypt.o aes.o debug.o
+aestest_LDFLAGS = -lcrypto
+aestest_OBJECTS = aestest.o aes.o debug.o
+aescrypt_OBJECTS = aescrypt.o aes.o
 
 aesdatagen_OBJECTS = aes_data_gen.o
 
-TARGETS = aescrypt aesdatagen
+TARGETS = aestest aesdatagen aescrypt
 
 RM = rm -f
 INSTALL = /usr/bin/install -c
@@ -17,7 +18,10 @@ BINDIR = /usr/local/bin
 all: $(TARGETS)
 
 aescrypt: $(aescrypt_OBJECTS)
-	$(CC) $(LDFLAGS) $(aescrypt_LDFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) $(aestest_LDFLAGS) -o $@ $^
+
+aestest: $(aestest_OBJECTS)
+	$(CC) $(LDFLAGS) $(aestest_LDFLAGS) -o $@ $^
 
 aesdatagen: $(aesdatagen_OBJECTS)
 	$(CC) $(LDFLAGS) $(aesdatagen_LDFLAGS) -o $@ $^
@@ -25,7 +29,7 @@ aesdatagen: $(aesdatagen_OBJECTS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
-aescrypt.o: aescrypt.c aes.h debug.h
+aestest.o: aescrypt.c aes.h debug.h
 aes.o: aes.c aes.h debug.h
 aes.o: debug.c debug.h
 aes_data_gen.o: aes_data_gen.c

@@ -13,7 +13,9 @@ typedef int64_t BN_signed_word_t;
 typedef enum BN_error_t {
 	BN_OK = 0,
 	BN_MALLOC_FAILED,
-	BN_OUTPUT_ERROR
+	BN_OUTPUT_ERROR,
+	BN_BAD_VALUE,
+	BN_WIDTH_CANT_BE_ZERO
 } BN_error_t;
 
 /** Structure that represents big number

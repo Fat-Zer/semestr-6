@@ -78,5 +78,5 @@ BN_error_t BN_fprint(FILE* f, bignum_t *num, char format) {
 		assert(!"bad format");
 		break;
 	}
-	return 0; // suppress the "control reaches end of function" warning
+	return -1; // suppress the "control reaches end of function" warning
 }
