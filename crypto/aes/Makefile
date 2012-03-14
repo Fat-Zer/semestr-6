@@ -1,6 +1,7 @@
 CC = gcc
-CFLAGS = -Wall -g -DAES_TABLE_ENCRIPTION -DDEBUG
-# CFLAGS = -Wall -O2
+#CFLAGS = -Wall -g -DAES_TABLE_ENCRIPTION -DDEBUG
+CFLAGS = -Wall -O2
+#-DAES_TABLE_ENCRIPTION
 
 aestest_LDFLAGS = -lcrypto
 aestest_OBJECTS = aestest.o aes.o debug.o
