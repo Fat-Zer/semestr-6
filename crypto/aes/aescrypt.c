@@ -250,6 +250,15 @@ void do_fdecrypt(FILE* ifs, FILE* ofs, MYAES_KEY* key) {
 	}
 		
 	while (rdd==16) {
+		rdd = fread(block, 1, 16, ifs);
+		if(rdd!=16) {
+			if(!feof(ifs)) {
+				fprintf(stderr,"Failed to read file. Reason: %s\n", strerror(errno));
+				exit(7);
+			} else {
+				break;
+			}
+		}
 		do_crypt_block(last, target, key, 1);
 		rv = fwrite(target, 1, 16, ofs);
 		if(rv!=16) {
@@ -257,14 +266,9 @@ void do_fdecrypt(FILE* ifs, FILE* ofs, MYAES_KEY* key) {
 			exit(9);
 		}
 		tmp=block; block=last; last=tmp;
-		rdd = fread(block, 1, 16, ifs);
-		if(rdd!=16 && !feof(ifs)) {
-			fprintf(stderr,"Failed to read file. Reason: %s\n", strerror(errno));
-			exit(7);
-		}
 	} 
 
-	do_crypt_block(block, target, key, 1);
+	do_crypt_block(last, target, key, 1);
 	if (target[16-1]>15) {
 		fprintf(stderr,"Bad format\n");
 		exit(10);
@@ -276,6 +280,8 @@ void do_fdecrypt(FILE* ifs, FILE* ofs, MYAES_KEY* key) {
 			exit(9);
 		}
 	}
+	free(last);
+	free(block);
 }
 
 void do_encrypt_incomplete_block(uint8_t* blk, uint8_t* trg, MYAES_KEY* key, size_t incompl_n) { 
