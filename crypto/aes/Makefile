@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -g -DAES_TABLE_ENCRIPTION
+CFLAGS = -Wall -g -DAES_TABLE_ENCRIPTION -DDEBUG
 # CFLAGS = -Wall -O2
 
 aestest_LDFLAGS = -lcrypto
