@@ -93,9 +93,14 @@ FROM Clients
 LIMIT 10;
 
 -- 10. Инструкция SELECT, использующая поисковое выражение CASE.
--- ???
--- см. 12
-
+SELECT name, family, surname, 
+	CASE balance
+		WHEN balance<0 THEN 'переломать ноги и выбить долг'
+		WHEN balance<1000 THEN 'нам не должен'
+		ELSE 'откуда у людей такие деньги!?'
+	END AS "balance comment"
+FROM clients;
+		
 
 -- 11. Создание новой временной локальной таблицы из результирующего набора данных инструкции SELECT. 
 
@@ -230,7 +235,7 @@ WITH "Avg Model Pric"(model) as
 				  ELSE (enddate-startdate) 
 				  END) ) AS NUMERIC(16,2) ) AS "Cost Per Day" 
 	FROM borrows INNER JOIN cars ON carID=cars.id
-	GROUP BY cars.model) as cars_avg_pay_price
+	GROUP BY cars.model ) as cars_avg_pay_price
 	WHERE cars_avg_pay_price.model = (SELECT model FROM cars WHERE id=100))
 WHERE ID=100;
 WITH CTE (SupplierNo, NumberOfShips)
