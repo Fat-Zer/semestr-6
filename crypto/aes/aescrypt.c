@@ -4,9 +4,21 @@
 #include <string.h>
 #include <getopt.h>
 #include <errno.h>
+#include <time.h>
+#include <assert.h>
 #include "aes.h"
 
+#ifdef DDEBUG
+#	define DUBUG_PRINT(str, ...) fprintf(stderr, str, __VA_ARGS__)
+#else
+#	define DUBUG_PRINT(str, ...) 
+#endif
+
 void inv_mix_single_column(uint8_t *column);
+void do_crypt_block(const uint8_t* blk, uint8_t* trg, MYAES_KEY* key, bool decrypt);
+void do_encrypt_incomplete_block(uint8_t* blk, uint8_t* trg, MYAES_KEY* key, size_t incompl_n);
+void do_fencrypt(FILE* ifs, FILE* ofs, MYAES_KEY* key);
+void do_fdecrypt(FILE* ifs, FILE* ofs, MYAES_KEY* key);
 
 void usage(char * argv0) {
 	fprintf(stderr,"Usage: %s -uhde --key_str <key_str> --128 --192 --256\n"
@@ -148,15 +160,16 @@ int main(int argc, char **argv)
 		} 
 		if(scnd!=16) {
 			fprintf(stderr,"Bad key_str.\n");
+			DUBUG_PRINT("scnd=%ld\n", scnd);
 			usage(argv[0]);
 			exit(4);
 		}
 	}
 
-	if(ifile==0 || strcmp(ifile,"-")) {
+	if(ifile==0 || strcmp(ifile,"-")==0) {
 		is = stdin;
 	} else {
-		is = fopen(ifile,"r");
+		is = fopen(ifile,"rb");
 		if(!is) {
 			fprintf(stderr,"Failed to open input file:%s.\n"
 			"Reason:%s\n", ifile, strerror(errno));
@@ -165,10 +178,10 @@ int main(int argc, char **argv)
 		}
 	}
 	
-	if(ofile==0 || strcmp(ofile,"-")) {
+	if(ofile==0 || strcmp(ofile,"-")==0) {
 		os = stdout;
 	} else {
-		os = fopen(ofile,"w");
+		os = fopen(ofile,"wb");
 		if(!os) {
 			fprintf(stderr,"Failed to open output file:%s.\n"
 			"Reason:%s\n", ofile, strerror(errno));
@@ -176,19 +189,116 @@ int main(int argc, char **argv)
 			exit(6);
 		}
 	}
+	if(decrypt==0) {
+		MYAES_set_encrypt_key(user_key, key_lng/32, &my_key);
+		do_fencrypt(is, os, &my_key);
+	} else {
+		MYAES_set_decrypt_key(user_key, key_lng/32, &my_key);
+		do_fdecrypt(is, os, &my_key);
+	}
 	
-
-	MYAES_set_encrypt_key(user_key, 4, &my_key);
-	uint8_t block[16] = {};
  	
-	uint8_t target[16];
-
-
-	MYAES_encrypt(block, target, &my_key);
-	
-	MYAES_set_decrypt_key(user_key, 4, &my_key);
-//	MYAES_decrypt(target, dtarget, &my_key);
+	fclose(is);
+	fclose(os);
 	
 	return 0;
 }
 
+void do_fencrypt(FILE* ifs, FILE* ofs, MYAES_KEY* key) {
+	uint8_t block[16];
+	uint8_t target[16];
+	size_t rdd;
+	int rv;
+		
+	while (1) {
+		rdd = fread(block, 1, sizeof(block), ifs);
+		if(rdd!=sizeof(block)) {
+			if(!feof(ifs)) {
+				fprintf(stderr,"Failed to read file. Reason: %s\n", strerror(errno));
+				exit(7);
+			} else {
+				break;
+			}
+		}
+		do_crypt_block(block, target, key, 0);
+		rv = fwrite(target, 1, sizeof(target), ofs);
+		if(rv!=sizeof(block)) {
+			fprintf(stderr,"Failed to write file. Reason: %s\n", strerror(errno));
+			exit(9);
+		}
+	} 
+
+	do_encrypt_incomplete_block(block, target, key, rdd);
+	rv = fwrite(target, 1, sizeof(target), ofs);
+	if(rv!=sizeof(target)) {
+		fprintf(stderr,"Failed to write file. Reason: %s\n", strerror(errno));
+		exit(9);
+	}
+}
+
+
+void do_fdecrypt(FILE* ifs, FILE* ofs, MYAES_KEY* key) {
+	uint8_t *block=malloc(16) , *last=malloc(16), *tmp;
+	uint8_t target[16];
+	size_t rdd;
+	int rv;
+	
+	rdd = fread(last, 1, 16, ifs);
+	if(rdd!=16 && !feof(ifs)) {
+		fprintf(stderr,"Failed to read file. Reason: %s\n", strerror(errno));
+		exit(7);
+	}
+		
+	while (rdd==16) {
+		rdd = fread(block, 1, 16, ifs);
+		if(rdd!=16) {
+			if(!feof(ifs)) {
+				fprintf(stderr,"Failed to read file. Reason: %s\n", strerror(errno));
+				exit(7);
+			} else {
+				break;
+			}
+		}
+		do_crypt_block(last, target, key, 1);
+		rv = fwrite(target, 1, 16, ofs);
+		if(rv!=16) {
+			fprintf(stderr,"Failed to write file. Reason: %s\n", strerror(errno));
+			exit(9);
+		}
+		tmp=block; block=last; last=tmp;
+	} 
+
+	do_crypt_block(last, target, key, 1);
+	if (target[16-1]>15) {
+		fprintf(stderr,"Bad format\n");
+		exit(10);
+	}
+	if(target[16-1]!=0) {
+		rv = fwrite(target, 1, target[16-1], ofs);
+		if(rv!=target[16-1]) {
+			fprintf(stderr,"Failed to write file. Reason: %s\n", strerror(errno));
+			exit(9);
+		}
+	}
+	free(last);
+	free(block);
+}
+
+void do_encrypt_incomplete_block(uint8_t* blk, uint8_t* trg, MYAES_KEY* key, size_t incompl_n) { 
+	size_t i;
+	srand(time(0));
+	for(i=incompl_n; i<16-2; i++) {
+		blk[i] = rand();
+	}
+	blk[15] = incompl_n;
+	do_crypt_block(blk, trg, key, 0);
+}
+
+void do_crypt_block(const uint8_t* blk, uint8_t* trg, MYAES_KEY* key, bool decrypt) { 
+	
+	if(!decrypt) {
+		MYAES_encrypt(blk, trg, key);
+	} else {
+		MYAES_decrypt(blk, trg, key);
+	}
+}
