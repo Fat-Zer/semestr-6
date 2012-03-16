@@ -53,11 +53,19 @@ END
 $$ LANGUAGE plpgsql;
 
 -- 3) Многооператорную табличную функцию
---CREATE OR REPLACE FUNCTION () 
---RETURNS TABLE(name AS , surname AS , fathername AS ) 
---AS $$
---	
---$$
+CREATE OR REPLACE FUNCTION getAllBalancesOf(minbal MONEY) RETURNS SETOF clients AS
+$BODY$
+DECLARE
+    r clients%rowtype;
+BEGIN
+    FOR r IN SELECT * FROM clients WHERE balance<minbal
+    LOOP
+        r.balance = r.balance + cast(100 AS MONEY);
+	RETURN NEXT r;
+    END LOOP;
+    RETURN;
+END
+$BODY$ LANGUAGE 'plpgsql' ;
 
 -- 4) Рекурсивную функцию или функцию с рекурсивным ОТВ
 CREATE OR REPLACE FUNCTION allReferals(clientID Clients.ID%TYPE) 
@@ -79,9 +87,33 @@ $$ LANGUAGE plpgsql;
 
 -- B. Четыре хранимых процедуры
 -- 1) Хранимую процедуру без параметров
+
 -- 2) Хранимую процедуру с входными и выходными параметрами
+CREATE OR REPLACE FUNCTION sum_n_product(x int, y int, OUT sum int, OUT prod int) AS $$
+BEGIN
+    sum := x + y;
+    prod := x * y;
+END;
+$$ LANGUAGE plpgsql;
+
 -- 3) Хранимую процедуру с курсором
+-- CREATE OR REPLACE FUNCTION getAllBalancesOf(minbal MONEY) RETURNS SETOF clients AS
+-- $BODY$
+-- DECLARE
+-- 	cur CURSOR FOR SELECT * FROM clients
+-- BEGIN
+--     FOR r IN SELECT * FROM clients WHERE balance<minbal
+--     LOOP
+--         r.balance = r.balance + cast(100 AS MONEY);
+-- 	RETURN NEXT r;
+--     END LOOP;
+--     RETURN;
+-- END
+-- $BODY$ LANGUAGE 'plpgsql' ;
+
+
 -- 4) Рекурсивную хранимую процедуру или хранимую процедуру с рекурсивним ОТВ
+
 -- C. Два триггера
 -- 1) Триггер AFTER
 -- 2) Триггер INSTEAD OF
