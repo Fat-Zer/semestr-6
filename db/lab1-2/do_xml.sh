@@ -1,11 +1,10 @@
+#!/bin/sh
+XML_DIR="/tmp/lab1-2_xml/"
+FIRST_XML="$XML_DIR/1.xml"
 
-select query_to_xml( 'select * from clients LIMIT 10' , TRUE, FALSE, '');
-select query_to_xml( 'select * from clients LIMIT 10' , TRUE, TRUE, '');
-
-
-select table_to_xml_and_xmlschema( 'clients', FALSE, FALSE, '');
-select table_to_xml_and_xmlschema( 'clients', FALSE, TRUE, '');
-
+mkdir -p $(dirname "$FIRST_XML");
+echo '<?xml version="1.1"?>' > "$FIRST_XML"
+psql -tf - >>"$FIRST_XML" <<EOF
 SELECT XMLSERIALIZE( CONTENT xmlelement(NAME root,xmlagg(xml_cli)) AS TEXT)
 FROM ( SELECT xmlelement(NAME clients, 
 			xmlattributes(c.surname, c.name, c.fathername), 
@@ -16,4 +15,5 @@ FROM ( SELECT xmlelement(NAME clients,
 				FROM borrows b
 				GROUP BY b.clientID ) AS bx USING (id)
 		LIMIT 10) AS cx;
-
+EOF
+sed -e 's/></>\n</g' -i "$FIRST_XML"
