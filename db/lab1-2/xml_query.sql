@@ -17,3 +17,11 @@ FROM ( SELECT xmlelement(NAME clients,
 				GROUP BY b.clientID ) AS bx USING (id)
 		LIMIT 10) AS cx;
 
+SELECT query_to_xml_and_xmlschema( 
+		$$SELECT c.surname, c.name, c.fathername, b.startDate, 
+			CAST(b.payment AS NUMERIC(18,2)) AS payment
+		FROM clients c NATURAL JOIN borrows b 
+		LIMIT 10;$$,
+		TRUE, FALSE, '');
+
+SELECT table_to_xml('cars', FALSE, TRUE, '');
