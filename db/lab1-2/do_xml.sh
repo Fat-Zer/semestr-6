@@ -1,6 +1,5 @@
 #!/bin/sh
 XML_DIR="/tmp/lab1-2_xml"
-CSS_DIR="$XML_DIR/css"
 XML1N="1.xml"
 XML2N="2.xml"
 XML3N="3.xml"
@@ -62,6 +61,7 @@ echo "SELECT xmlelement(NAME root, table_to_xml('cars', FALSE, TRUE, ''));" | ps
 ############################################################
 #               CSS                                        #
 ############################################################
+CSS_DIR="$XML_DIR/css"
 mkdir -p "$CSS_DIR"
 
 for I in {1..3}; do
@@ -193,10 +193,103 @@ payment:before {
 }
 EOF
 
-# sed -e '2s/+$//;s/ *+$//' -i "$XML2"
+############################################################
+#               XSL                                        #
+############################################################
 
-# echo "$XML_HEADER" > "$XML1"
-# psql -Atf - >>"$XML1" <<EOF
-# 
+XSL_DIR="$XML_DIR/xsl"
+mkdir -p "$XSL_DIR"
+
+I=1;
+
+XSL="$I.xsl"
+XSL_STR='<?xml-stylesheet href="'"$XSL"'" type="text/xsl"?>'
+sed -e "1a$XSL_STR" "$XML1" >"$XSL_DIR/$I.xml"
+
+cat >$XSL_DIR/$XSL <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+<xsl:output method="html" />
+<xsl:template match="/">
+<html>
+	<title>Clients and borrows</title>
+	<body>
+		<h2>Клиенты и заказанные ими машины.</h2>
+		<table border="1">
+			<tr bgcolor="#9acd32">
+				<th align="left">ФИО</th>
+				<th align="left">Дата</th>
+				<th align="left">Цена</th>
+			</tr>
+			<xsl:for-each select="root/clients">
+				<tr>             
+					<td valign="top">
+						<xsl:attribute name="rowspan">
+							<xsl:value-of select="count(borrow)+1"/>
+						</xsl:attribute>
+						<xsl:value-of select="@surname"/><xsl:text> </xsl:text>
+						<xsl:value-of select="@name"/><xsl:text> </xsl:text>
+						<xsl:value-of select="@fathername"/>
+					</td>
+					<xsl:for-each select="borrow">
+						<tr>
+							<td>
+								<xsl:value-of select="@startdate"/>
+							</td>
+							<td>
+								$ <xsl:value-of select="@payment"/>
+							</td>
+						</tr>
+					</xsl:for-each>
+				</tr>
+			</xsl:for-each> 
+		</table>
+	</body>
+</html>
+</xsl:template>
+</xsl:stylesheet>
+EOF
+
+# cat >$XSL_DIR/$XSL <<EOF
+# <?xml version="1.0"?>
+# <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+# <xsl:output method="html" />
+# <xsl:template match="/">
+# <html>
+# 	<title>Clients and borrows</title>
+# 	<body>
+# 		<h2>Clients & their borrows.</h2>
+# 		<table border>
+# 			<tr bgcolor="#9acd32">
+# 				<th align="left">ФИО</th>
+# 				<th align="left">Дата</th>
+# 				<th align="left">Цена</th>
+# 			</tr>
+# 			<xsl:for-each select="root/clients">
+# 				<tr>             
+# 					<td>
+# 						<xsl:value-of select="surname"/> 
+# 						<xsl:value-of select="name"/>
+# 						<xsl:value-of select="fathername"/>
+# 					</td>
+# 					<tbody>
+# 						<xsl:for-each select="borrow">
+# 							<tr>
+# 								<td>
+# 									<xsl:value-of select="stardate"/>
+# 								</td>
+# 								<td>
+# 									$ <xsl:value-of select="payment"/>
+# 								</td>
+# 							</tr>
+# 						</xsl:for-each>
+# 					</tbody>
+# 				<tr>
+# 			</xsl:for-each> 
+# 		</table>
+# 	</body>
+# </html>
+# </xsl:template>
+# </xsl:stylesheet>
 # EOF
-# sed -e 's/></>\n</g' -i "$XML1"
+# 
