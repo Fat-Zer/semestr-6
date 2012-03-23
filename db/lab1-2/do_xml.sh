@@ -250,6 +250,59 @@ cat >$XSL_DIR/$XSL <<EOF
 </xsl:stylesheet>
 EOF
 
+XSL_DIR="$XML_DIR/xsl"
+mkdir -p "$XSL_DIR"
+
+I=2;
+
+XSL="$I.xsl"
+XSL_STR='<?xml-stylesheet href="'"$XSL"'" type="text/xsl"?>'
+sed -e "1a$XSL_STR" "$XML2" >"$XSL_DIR/$I.xml"
+
+cat >$XSL_DIR/$XSL <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+<xsl:output method="html" />
+<xsl:template match="/">
+<html>
+	<title>Clients and borrows</title>
+	<body>
+		<h2>Клиенты и заказанные ими машины.</h2>
+		<table border="1">
+			<tr bgcolor="#9acd32">
+				<th align="left">ФИО</th>
+				<th align="left">Дата</th>
+				<th align="left">Цена</th>
+			</tr>
+			<xsl:for-each select="root/clients">
+				<tr>             
+					<td valign="top">
+						<xsl:attribute name="rowspan">
+							<xsl:value-of select="count(borrow)+1"/>
+						</xsl:attribute>
+						<xsl:value-of select="surname"/><xsl:text> </xsl:text>
+						<xsl:value-of select="name"/><xsl:text> </xsl:text>
+						<xsl:value-of select="fathername"/>
+					</td>
+					<xsl:for-each select="borrow">
+						<tr>
+							<td>
+								<xsl:value-of select="startdate"/>
+							</td>
+							<td>
+								$ <xsl:value-of select="payment"/>
+							</td>
+						</tr>
+					</xsl:for-each>
+				</tr>
+			</xsl:for-each> 
+		</table>
+	</body>
+</html>
+</xsl:template>
+</xsl:stylesheet>
+EOF
+
 # cat >$XSL_DIR/$XSL <<EOF
 # <?xml version="1.0"?>
 # <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
