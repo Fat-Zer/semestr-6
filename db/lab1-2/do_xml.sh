@@ -86,14 +86,32 @@ name, surname, fathername {
 	display: table-cell;
 	border: 1px solid black;
 	padding: 2px;
+	padding-right:10px;
 }
 
 borrows {
 	display:table-row-group;
-	border-lef: 1px solid black;
 	width=100%;
 }
 
+startdate, payment {
+	display:table-cell;
+	border-top: 1px solid black;
+	padding: 2px;
+	padding-left:10px;
+	padding-right:10px;
+}
+
+payment {
+	padding-left:10px;
+	border-left: 1px solid black;
+	text-align:right;
+	width:100px;
+}
+
+payment:before {
+	content:'$ ';
+}
 EOF
 
 
@@ -103,47 +121,75 @@ clients {
 	border: solid;
 	border-width: 10px;
 	border-color:white;
-	width: 545pt;
+	background:darkgrey
 }
 
 name, surname, fathername {
 	display: inline;
-	width:20%;
-	border:double; 
-	border-width:2px; 
-	border-color:#CCCCCC;
-	width: 526pt;
-	text-align: center;
 	font-family: Comic Sans Ms, Arial, Helvetica;
 	font-size: 18pt;
-	color: #F0F01F;
-	background-color:#013101
 }
 
 borrows {
 	display: block;
+	padding-left: 20px;
+	background: grey;
+}
+
+startdate, payment {
+	font-family: Arial, Helvetica;
+	font-size: 14pt;
+	color: lightgreen;
+	display: inline;
+}
+
+startdate:after {
+	content:':   ';
+}
+
+payment:before {
+	content:'$';
+}
+EOF
+
+
+cat >"$CSS_DIR/3.css" << EOF
+clients {
+	display: block;
+	background:darkgrey
+}
+
+name, surname, fathername {
+	display: inline;
+	font-family: Helvetica;
+	font-size: 24pt;
+}
+
+borrows {
+	display: table-row;
+	padding-left: 20px;
+	background: grey;
+	border-collapse: collapse;
+}
+
+startdate, payment {
+	display: table-cell;
+	font-family: Helvetica;
+	font-size: 12pt;
+	color: blue;
 }
 
 startdate {
-	font-family: Arial, Helvetica;
-	font-size: 14pt;
-	color: #10D010;
-	display: inline;
-	border:solid; 
-	border-width:0px; 
-	border-color:#CCCCCC;
-	width: 340pt;
+	padding-right: 10px;
 }
 
 payment {
-	font-family: Arial, Helvetica;
-	font-size: 14pt;
-	color: #10D010;
-	display: inline;
-	border:solid; 
-	border-width:0px; 
-	border-color:#CCCCCC;
-	width: 100pt
+	color: red;
+}
+
+payment:before {
+	content:'$ ';
+	color: #AA1111
 }
 EOF
 
