@@ -1,34 +1,36 @@
 #!/bin/sh
 XML_DIR="/tmp/lab1-2_xml"
-XML1N="1.xml"
-XML2N="2.xml"
-XML3N="3.xml"
-XML4N="4.xml"
-XML1="$XML_DIR/$XML1N"
-XML2="$XML_DIR/$XML2N"
-XML3="$XML_DIR/$XML3N"
-XML4="$XML_DIR/$XML4N"
+XMLN[1]="1.xml"
+XMLN[2]="2.xml"
+XMLN[3]="3.xml"
+XMLN[4]="3.xml"
+XML[1]="$XML_DIR/${XMLN[1]}"
+XML[2]="$XML_DIR/${XMLN[2]}"
+XML[3]="$XML_DIR/${XMLN[3]}"
+XML[4]="$XML_DIR/${XMLN[4]}"
 XML_HEADER='<?xml version="1.1"?>'
-mkdir -p $(dirname "$XML1");
+SAXON="saxon8"
+XMLTPROC="xmltproc"
+mkdir -p $(dirname "${XML[1]}");
 
 
-echo "$XML_HEADER" > "$XML1"
-psql -Atf - >>"$XML1" <<EOF
+echo "$XML_HEADER" > "${XML[1]}"
+psql -Atf - >>"${XML[1]}" <<EOF
 SELECT XMLSERIALIZE( CONTENT xmlelement(NAME root,xmlagg(xml_cli)) AS TEXT)
 FROM ( SELECT xmlelement(NAME clients, 
 			xmlattributes(c.surname, c.name, c.fathername), 
 			bx.xml_bor) AS xml_cli
 		FROM clients c 
-			JOIN ( SELECT b.clientid AS id, xmlagg(xmlelement(NAME borrow,
+			JOIN ( SELECT b.clientid AS id, xmlagg(xmlelement(NAME borrows,
 					xmlattributes(b.startDate, CAST(b.payment AS NUMERIC(18,2)) AS payment ))) AS xml_bor
 				FROM borrows b
 				GROUP BY b.clientID ) AS bx USING (id)
 		LIMIT 10) AS cx;
 EOF
-sed -e 's/></>\n</g' -i "$XML1"
+sed -e 's/></>\n</g' -i "${XML[1]}"
 
-echo "$XML_HEADER" > "$XML2"
-psql -Atf - >>"$XML2" <<EOF
+echo "$XML_HEADER" > "${XML[2]}"
+psql -Atf - >>"${XML[2]}" <<EOF
 SELECT XMLSERIALIZE( CONTENT xmlelement(NAME root,xmlagg(xml_cli)) AS TEXT)
 FROM ( SELECT xmlelement(NAME clients, 
 			xmlelement(NAME surname, c.surname), 
@@ -43,10 +45,10 @@ FROM ( SELECT xmlelement(NAME clients,
 				GROUP BY b.clientID ) AS bx USING (id)
 		LIMIT 20) AS cx;
 EOF
-sed -e 's/></>\n</g' -i "$XML2"
+sed -e 's/></>\n</g' -i "${XML[2]}"
 
-# echo "$XML_HEADER" > "$XML2"
-# psql -Atf - >>"$XML2" <<EOF
+# echo "$XML_HEADER" > "${XML[2]}"
+# psql -Atf - >>"${XML[2]}" <<EOF
 # SELECT query_to_xml( 
 # 		'SELECT c.surname, c.name, c.fathername, b.startDate, 
 # 			CAST(b.payment AS NUMERIC(18,2)) AS payment
@@ -55,8 +57,8 @@ sed -e 's/></>\n</g' -i "$XML2"
 # 		FALSE, FALSE, '');
 # EOF
 
-echo "$XML_HEADER" > "$XML3"
-echo "SELECT xmlelement(NAME root, table_to_xml('cars', FALSE, TRUE, ''));" | psql -Atf - >>"$XML3" 
+echo "$XML_HEADER" > "${XML[3]}"
+echo "SELECT xmlelement(NAME root, table_to_xml('cars', FALSE, TRUE, ''));" | psql -Atf - >>"${XML[3]}" 
 
 ############################################################
 #               CSS                                        #
@@ -67,7 +69,7 @@ mkdir -p "$CSS_DIR"
 for I in {1..3}; do
 	CSS="$I.css"
 	CSS_STR='<?xml-stylesheet href="'"$CSS"'" type="text/css"?>'
-	sed -e "1a$CSS_STR" "$XML2" >"$CSS_DIR/$I.xml"
+	sed -e "1a$CSS_STR" "${XML[2]}" >"$CSS_DIR/$I.xml"
 done
 
 cat >"$CSS_DIR/1.css" << EOF
@@ -200,13 +202,14 @@ EOF
 XSL_DIR="$XML_DIR/xsl"
 mkdir -p "$XSL_DIR"
 
-I=1;
+for I in {1..3}; do
+	XSL="$I.xsl"
+	XSL_STR='<?xml-stylesheet href="'"$XSL"'" type="text/xsl"?>'
+	sed -e "1a$XSL_STR" "${XML[$I]}" >"$XSL_DIR/$I.xml"
+done
 
-XSL="$I.xsl"
-XSL_STR='<?xml-stylesheet href="'"$XSL"'" type="text/xsl"?>'
-sed -e "1a$XSL_STR" "$XML1" >"$XSL_DIR/$I.xml"
 
-cat >$XSL_DIR/$XSL <<EOF
+cat >$XSL_DIR/1.xsl <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:output method="html" />
@@ -225,13 +228,13 @@ cat >$XSL_DIR/$XSL <<EOF
 				<tr>             
 					<td valign="top">
 						<xsl:attribute name="rowspan">
-							<xsl:value-of select="count(borrow)+1"/>
+							<xsl:value-of select="count(borrows)+1"/>
 						</xsl:attribute>
 						<xsl:value-of select="@surname"/><xsl:text> </xsl:text>
 						<xsl:value-of select="@name"/><xsl:text> </xsl:text>
 						<xsl:value-of select="@fathername"/>
 					</td>
-					<xsl:for-each select="borrow">
+					<xsl:for-each select="borrows">
 						<tr>
 							<td>
 								<xsl:value-of select="@startdate"/>
@@ -250,16 +253,7 @@ cat >$XSL_DIR/$XSL <<EOF
 </xsl:stylesheet>
 EOF
 
-XSL_DIR="$XML_DIR/xsl"
-mkdir -p "$XSL_DIR"
-
-I=2;
-
-XSL="$I.xsl"
-XSL_STR='<?xml-stylesheet href="'"$XSL"'" type="text/xsl"?>'
-sed -e "1a$XSL_STR" "$XML2" >"$XSL_DIR/$I.xml"
-
-cat >$XSL_DIR/$XSL <<EOF
+cat >$XSL_DIR/2.xsl <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:output method="html" />
@@ -278,13 +272,13 @@ cat >$XSL_DIR/$XSL <<EOF
 				<tr>             
 					<td valign="top">
 						<xsl:attribute name="rowspan">
-							<xsl:value-of select="count(borrow)+1"/>
+							<xsl:value-of select="count(borrows)+1"/>
 						</xsl:attribute>
 						<xsl:value-of select="surname"/><xsl:text> </xsl:text>
 						<xsl:value-of select="name"/><xsl:text> </xsl:text>
 						<xsl:value-of select="fathername"/>
 					</td>
-					<xsl:for-each select="borrow">
+					<xsl:for-each select="borrows">
 						<tr>
 							<td>
 								<xsl:value-of select="startdate"/>
@@ -302,6 +296,60 @@ cat >$XSL_DIR/$XSL <<EOF
 </xsl:template>
 </xsl:stylesheet>
 EOF
+
+cat >$XSL_DIR/3.xsl <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+<xsl:output method="html" />
+<xsl:template match="/">
+<html>
+	<title>Clients and borrows</title>
+	<body>
+		<h2>Наши машинки.</h2>
+		<table border="1">
+			<tr bgcolor="#FEACDB">
+				<th align="left">Номер</th>
+				<th align="left">Модель</th>
+				<th align="left">Цвет</th>
+			</tr>
+			<xsl:for-each select="root/cars">
+				<tr>             
+					<td valign="top">
+						<xsl:value-of select="num"/>
+					</td>
+					<td>
+					<a>
+						<xsl:attribute name="href">
+							http://yandex.ru/yandsearch?text=<xsl:value-of select="model"/>
+						</xsl:attribute>
+						<xsl:value-of select="model"/>
+					</a>
+					</td>
+					<td>
+						<xsl:value-of select="color"/>
+					</td>
+				</tr>
+			</xsl:for-each> 
+		</table>
+	</body>
+</html>
+</xsl:template>
+</xsl:stylesheet>
+EOF
+
+for I in {1..3}; do
+	XSL="$XSL_DIR/$I.xsl"
+	XML="$XSL_DIR/$I.xml"
+	HTM="$XSL_DIR/$I.htm"
+	if env ${SAXON} --help >/dev/null 2>&1;then 
+		${SAXON} -o "$HTM" "$XML" "$XSL"
+	elif env ${XMLTPROC} --help >/dev/null 2>&1;then 
+		${XMLTPROC} -o "$HTM" "$XSL" "$XML" 
+	else
+		echo "NO PARSER FOUND!!!"
+	fi
+done
+
 
 # cat >$XSL_DIR/$XSL <<EOF
 # <?xml version="1.0"?>
@@ -326,7 +374,7 @@ EOF
 # 						<xsl:value-of select="fathername"/>
 # 					</td>
 # 					<tbody>
-# 						<xsl:for-each select="borrow">
+# 						<xsl:for-each select="borrows">
 # 							<tr>
 # 								<td>
 # 									<xsl:value-of select="stardate"/>
