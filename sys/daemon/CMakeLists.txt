@@ -1,3 +1,3 @@
-PROJECT(brightnessctld)
+PROJECT(backlight_ctl)
 
-ADD_EXECUTABLE(brightnessctld brightnessctld.c)
+ADD_EXECUTABLE(backlightctld backlightd.c)
