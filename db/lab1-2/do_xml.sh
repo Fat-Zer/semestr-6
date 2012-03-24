@@ -10,7 +10,7 @@ XML[3]="$XML_DIR/${XMLN[3]}"
 XML[4]="$XML_DIR/${XMLN[4]}"
 XML_HEADER='<?xml version="1.1"?>'
 SAXON="saxon8"
-XMLTPROC="xmltproc"
+XSLTPROC="xsltproc"
 mkdir -p $(dirname "${XML[1]}");
 
 
@@ -337,60 +337,106 @@ cat >$XSL_DIR/3.xsl <<EOF
 </xsl:stylesheet>
 EOF
 
+############################################################
+#               Saxon/xsltproc                             #
+############################################################
+
 for I in {1..3}; do
 	XSL="$XSL_DIR/$I.xsl"
 	XML="$XSL_DIR/$I.xml"
 	HTM="$XSL_DIR/$I.htm"
-	if env ${SAXON} --help >/dev/null 2>&1;then 
+	if env ${SAXON} -? >/dev/null 2>&1; then 
 		${SAXON} -o "$HTM" "$XML" "$XSL"
-	elif env ${XMLTPROC} --help >/dev/null 2>&1;then 
-		${XMLTPROC} -o "$HTM" "$XSL" "$XML" 
+	elif env ${XSLTPROC} -V >/dev/null 2>&1; then 
+		${XSLTPROC} -o "$HTM" "$XSL" "$XML" 
 	else
 		echo "NO PARSER FOUND!!!"
 	fi
 done
 
+############################################################
+#               Transform                                  #
+############################################################
 
-# cat >$XSL_DIR/$XSL <<EOF
-# <?xml version="1.0"?>
-# <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-# <xsl:output method="html" />
-# <xsl:template match="/">
-# <html>
-# 	<title>Clients and borrows</title>
-# 	<body>
-# 		<h2>Clients & their borrows.</h2>
-# 		<table border>
-# 			<tr bgcolor="#9acd32">
-# 				<th align="left">ФИО</th>
-# 				<th align="left">Дата</th>
-# 				<th align="left">Цена</th>
-# 			</tr>
-# 			<xsl:for-each select="root/clients">
-# 				<tr>             
-# 					<td>
-# 						<xsl:value-of select="surname"/> 
-# 						<xsl:value-of select="name"/>
-# 						<xsl:value-of select="fathername"/>
-# 					</td>
-# 					<tbody>
-# 						<xsl:for-each select="borrows">
-# 							<tr>
-# 								<td>
-# 									<xsl:value-of select="stardate"/>
-# 								</td>
-# 								<td>
-# 									$ <xsl:value-of select="payment"/>
-# 								</td>
-# 							</tr>
-# 						</xsl:for-each>
-# 					</tbody>
-# 				<tr>
-# 			</xsl:for-each> 
-# 		</table>
-# 	</body>
-# </html>
-# </xsl:template>
-# </xsl:stylesheet>
-# EOF
-# 
+TRANS_DIR="$XML_DIR/trans"
+mkdir -p $TRANS_DIR
+TRANS="$TRANS_DIR/trans"
+TRANS_C="$TRANS_DIR/trans.c"
+
+cat >"$TRANS_C" <<EOF42
+#include <string.h>
+#include <libxml/xmlmemory.h>
+#include <libxml/debugXML.h>
+#include <libxml/HTMLtree.h>
+#include <libxml/xmlIO.h>
+#include <libxml/DOCBparser.h>
+#include <libxml/xinclude.h>
+#include <libxml/catalog.h>
+#include <libxslt/xslt.h>
+#include <libxslt/xsltInternals.h>
+#include <libxslt/transform.h>
+#include <libxslt/xsltutils.h>
+
+
+extern int xmlLoadExtDtdDefaultValue;
+
+static void usage(const char *name) {
+    printf("Usage: %s [options] stylesheet file [file ...]\n", name);
+    printf("      --param name value : pass a (parameter,value) pair\n");
+}
+
+int
+main(int argc, char **argv) {
+	int i;
+	const char *params[16 + 1];
+	int nbparams = 0;
+	xsltStylesheetPtr cur = NULL;
+	xmlDocPtr doc, res;
+
+	if (argc <= 1) {
+		usage(argv[0]);
+		return(1);
+	}
+
+
+	for (i = 1; i < argc; i++) {
+		if (argv[i][0] != '-')
+			break;
+		if ((!strcmp(argv[i], "-param")) ||
+				(!strcmp(argv[i], "--param"))) {
+			i++;
+			params[nbparams++] = argv[i++];
+			params[nbparams++] = argv[i];
+			if (nbparams >= 16) {
+				fprintf(stderr, "too many params\n");
+				return (1);
+			}
+		}  else {
+			fprintf(stderr, "Unknown option %s\n", argv[i]);
+			usage(argv[0]);
+			return (1);
+		}
+	}
+
+	params[nbparams] = NULL;
+	xmlSubstituteEntitiesDefault(1);
+	xmlLoadExtDtdDefaultValue = 1;
+	cur = xsltParseStylesheetFile((const xmlChar *)argv[i]);
+	i++;
+	doc = xmlParseFile(argv[i]);
+	res = xsltApplyStylesheet(cur, doc, params);
+	xsltSaveResultToFile(stdout, res, cur);
+
+	xsltFreeStylesheet(cur);
+	xmlFreeDoc(res);
+	xmlFreeDoc(doc);
+
+	xsltCleanupGlobals();
+	xmlCleanupParser();
+	return(0);
+}
+EOF42
+
+gcc "$TRANS_C" $(pkg-config --cflags --libs libxml-2.0 libxslt) -o "$TRANS"
+
+$TRANS $XSL_DIR/1.xsl $XSL_DIR/1.xml >$TRANS_DIR/1.htm
