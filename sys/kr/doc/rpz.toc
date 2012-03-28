@@ -1,0 +1,4 @@
+\select@language {russian}
+\contentsline {chapter}{\numberline {1}\CYRV \cyrv \cyre \cyrd \cyre \cyrn \cyri \cyre }{2}{chapter.1}
+\contentsline {chapter}{\numberline {2}\IeC {\CYRA }\IeC {\cyrn }\IeC {\cyra }\IeC {\cyrl }\IeC {\cyri }\IeC {\cyrt }\IeC {\cyri }\IeC {\cyrch }\IeC {\cyre }\IeC {\cyrs }\IeC {\cyrk }\IeC {\cyri }\IeC {\cyrishrt } \IeC {\cyrr }\IeC {\cyra }\IeC {\cyrz }\IeC {\cyrd }\IeC {\cyre }\IeC {\cyrl }}{3}{chapter.2}
+\contentsline {section}{\numberline {2.1}C\IeC {\cyri }\IeC {\cyrs }\IeC {\cyrt }\IeC {\cyre }\IeC {\cyrm }\IeC {\cyrn }\IeC {\cyrery }t \IeC {\cyrv }\IeC {\cyrery }\IeC {\cyrz }\IeC {\cyro }\IeC {\cyrv }\IeC {\cyro }\IeC {\cyrv }\IeC {\cyrery } linux}{3}{section.2.1}

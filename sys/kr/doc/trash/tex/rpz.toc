@@ -1,0 +1,2 @@
+\select@language {russian}
+\contentsline {chapter}{\CYRV \cyrv \cyre \cyrd \cyre \cyrn \cyri \cyre }{5}{section*.5}
