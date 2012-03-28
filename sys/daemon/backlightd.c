@@ -14,23 +14,38 @@
 		if(pd.log.syslog) { syslog(lvl, __VA_ARGS__); } \
 		if( !pd.daemonized || (pd.daemonized && pd.log.fname)) \
 			{ fprintf(stderr, "%s: ", loglvl2str(lvl)); \
-			  fprintf(stderr,  __VA_ARGS__ ); } \
+			  fprintf(stderr,  __VA_ARGS__ ); \
+			  fprintf(stderr, "\n"); } \
 		if( !pd.flag.daemon && pd.log.fs) \
 			{ fprintf( pd.log.fs, "%s: ", loglvl2str(lvl)); \
-			  fprintf( pd.log.fs, __VA_ARGS__ ); } \
+			  fprintf( pd.log.fs, __VA_ARGS__ ); \
+			  fprintf(stderr, "\n"); } \
 	} while(0)
 
+#define DEFAULT_CONTROL_PIPE "/var/run/backlightd.pipe"
+#define DEFAULT_PID_FILE "/var/run/backlightd.pid"
+
 typedef int error_t;
+
+enum exit_error_t {
+	EERR_SUCCESS=0,
+	EERR_BAD_KEY,
+	EERR_GETOPT_FAILED,
+	EERR_DAEMONIZE_FAILED,
+	EERR_REOPEN_DESCRIPTERS,
+	EERR_LOCK_PIDFILE };
 
 static struct {
 	const char* prog_name;
 	bool daemonized;
 	const char *pipe;
+	FILE *pipe_fd;
+	const char *pid_file;
+	int pid_fd;
 	struct {
 		char *fname;
 		FILE *fs;
 		bool syslog;
-		bool stderr;
 	} log;
 	struct {
 		bool help;
@@ -44,9 +59,13 @@ static struct {
 } pd = { 
 	.prog_name=0,
 	.daemonized=0, 
-	.log={.fname=0, .fs=0, .syslog=0, .stderr=0}, 
+	.pid_file=DEFAULT_PID_FILE,
+	.pid_fd=-1,
+	.pipe=DEFAULT_CONTROL_PIPE,
+	.pipe_fd=-1,
+	.log={.fname=0, .fs=0, .syslog=0}, 
 	.flag={.help=0, .usage=0, .daemon=1},
-	.ligth={.iface=0, .iface_name=0} };
+	.ligth={.iface=0, .iface_name="intel_backlight"} };
 
 void usage() {
 	fprintf(stderr,"Usage: %s -uhDNS --log <log_file> --pipe <control_pipe> [brightness_drv]\n", 
@@ -66,6 +85,8 @@ void help() {
 }
 
 const char * loglvl2str(int lvl);
+void start_backlightd();
+error_t daemonize();
 
 int main(int argc, char** argv) {
 	
@@ -113,22 +134,74 @@ int main(int argc, char** argv) {
 			break;
 		case '?':
 			usage();
-			exit(1);
+			exit(EERR_BAD_KEY);
 
 		default:
 			fprintf(stderr, "?? getopt returned character code 0%o ??\n", c);
 			usage();
-			exit(2);
+			exit(EERR_GETOPT_FAILED);
 		}
 	}
-	if (argc - optind > 1) {
+	if(argc - optind > 1) {
 		usage();
 		exit(3);
 	} else if (argc - optind != 1) {
 		pd.ligth.iface_name = argv[optind];
-	} 
+	}
+	
+	if(pd.flag.help) {
+		help();
+	} else if(pd.flag.usage) {
+		usage();
+	} else {
+		start_backlightd();
+	}
 	
 	return 0;
+}
+
+void start_backlightd() {
+	if(pd.log.syslog) {
+		openlog(pd.prog_name, 0, pd.flag.daemon ? LOG_DAEMON : LOG_USER);
+	}
+
+	if(!pd.flag.daemon && pd.log.fname) {
+		pd.log.fs = fopen(pd.log.fname, "w");
+		if(!pd.log.fs) {
+			LOG(LOG_ERR, "open file %s failed with error %d:%s\n",
+					pd.log.fname, errno, strerror(errno));
+		}
+	}
+
+	umask(0);
+	pd.pid_fd = lock_pid_file(pd.pid_file);
+	if(pd.pid_fd == -1) {
+		LOG(LOG_CRIT, "locking pidfile failed: seems the daemon allready running.");
+		exit(EERR_LOCK_PIDFILE);
+	}
+
+	pd.pipe_fd = open_ctl_pipe(pd.pipe);
+	if(pd.pipe_fd == -1) {
+		LOG(LOG_CRIT, "creation of the control pipe failed.");
+		exit(EERR_LOCK_PIDFILE);
+	}
+
+	if(pd.flag.daemon) {
+		if(daemonize() == -1) {
+			LOG(LOG_INFO, "Daemonized successfull.");
+			pd.daemonized=1;
+			if(reopen_stdio() != -1) {
+				LOG(LOG_INFO, "Reopened stdio descripters successfully.");
+			} else {
+				LOG(LOG_CRIT, "reopen stdio descripters failed.");
+				exit(EERR_REOPEN_DESCRIPTERS);
+			}
+		} else {
+			LOG(LOG_CRIT, "Daemonized failed. Exiting.");
+			exit(EERR_DAEMONIZE_FAILED);
+		}
+	}
+
 }
 
 const char * loglvl2str(int lvl) {
@@ -143,6 +216,43 @@ const char * loglvl2str(int lvl) {
 		case LOG_DEBUG:   return "DBUG";
 		default:          return "UKNW";
 	}
+}
+
+int open_ctl_pipe(const char *name) {
+	int rv;
+	
+	rv = mkfifo(name, O_WRIGHT | O_CREAT | O_NO_CTTY | O_TRUNC, 0640);
+	if( rv == -1 ) {
+		LOG(LOG_ERR, "open file %s failed with error %d:%s\n",
+				name, errno, strerror(errno));
+	}
+	else if( lockf(rv, F_TLOCK, 0) == -1) {
+		LOG(LOG_ERR, "lock file %s failed with error %d:%s\n",
+				name, errno, strerror(errno));
+		close(rv);
+		rv = -1;
+	}
+
+	return rv;
+}
+
+
+int lock_pid_file(const char *name) {
+	int rv;
+
+	rv = open(name, O_WRIGHT | O_CREAT | O_NO_CTTY | O_TRUNC, 0640);
+	if( rv == -1 ) {
+		LOG(LOG_ERR, "open file %s failed with error %d:%s\n",
+				name, errno, strerror(errno));
+	}
+	else if( lockf(rv, F_TLOCK, 0) == -1) {
+		LOG(LOG_ERR, "lock file %s failed with error %d:%s\n",
+				name, errno, strerror(errno));
+		close(rv);
+		rv = -1;
+	}
+
+	return rv;
 }
 
 error_t daemonize() {
@@ -177,13 +287,13 @@ int reopen_fd(int fd, const char* name, mode_t mode) {
 		return -1;
 	}
 	
-	fd = open(name, mode);
 	if( fd == -1) {
 		LOG(LOG_ERR, "open file %s failed with error %d:%s\n",
 				name, errno, strerror(errno));
 		return -1;
 	}
 
+	fd = open(name, mode);
 	return fd;
 }
 
