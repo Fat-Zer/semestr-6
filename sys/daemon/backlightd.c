@@ -14,17 +14,17 @@
 		if(pd.log.syslog) { syslog(lvl, __VA_ARGS__); } \
 		if( !pd.daemonized || (pd.daemonized && pd.log.fname)) \
 			{ fprintf(stderr, "%s: ", loglvl2str(lvl)); \
-			  fprintf(stderr,  __VA_ARGS__ ); \
-			  fprintf(stderr, "\n"); } \
+			  fprintf(stderr,  __VA_ARGS__ ); } \
 		if( !pd.flag.daemon && pd.log.fs) \
 			{ fprintf( pd.log.fs, "%s: ", loglvl2str(lvl)); \
-			  fprintf( pd.log.fs, __VA_ARGS__ ); \
-			  fprintf(stderr, "\n"); } \
+			  fprintf( pd.log.fs, __VA_ARGS__ ); } \
 	} while(0)
 
-#define DEFAULT_CONTROL_PIPE "/var/run/backlightd.pipe"
-#define DEFAULT_PID_FILE "/var/run/backlightd.pid"
+#define DEBUG_LOG( ... ) LOG(LOG_DEBUG, __VA_ARGS__)
 
+#define DEFAULT_CONTROL_PIPE "/var/run/backlightd.fifo"
+#define DEFAULT_PID_FILE "/var/run/backlightd.pid"
+#define COMMAND_BUFF_SZ ((size_t)1 << 10)
 typedef int error_t;
 
 enum exit_error_t {
@@ -33,13 +33,16 @@ enum exit_error_t {
 	EERR_GETOPT_FAILED,
 	EERR_DAEMONIZE_FAILED,
 	EERR_REOPEN_DESCRIPTERS,
-	EERR_LOCK_PIDFILE };
+	EERR_LOCK_PIDFILE,
+	EERR_CREATE_FIFO,
+	EERR_FCLOSE_FIFO,
+	EERR_FDOPEN_FIFO };
 
 static struct {
 	const char* prog_name;
 	bool daemonized;
-	const char *pipe;
-	FILE *pipe_fd;
+	const char *fifo;
+	int fifo_fd;
 	const char *pid_file;
 	int pid_fd;
 	struct {
@@ -61,14 +64,14 @@ static struct {
 	.daemonized=0, 
 	.pid_file=DEFAULT_PID_FILE,
 	.pid_fd=-1,
-	.pipe=DEFAULT_CONTROL_PIPE,
-	.pipe_fd=-1,
+	.fifo=DEFAULT_CONTROL_PIPE,
+	.fifo_fd=-1,
 	.log={.fname=0, .fs=0, .syslog=0}, 
 	.flag={.help=0, .usage=0, .daemon=1},
 	.ligth={.iface=0, .iface_name="intel_backlight"} };
 
 void usage() {
-	fprintf(stderr,"Usage: %s -uhDNS --log <log_file> --pipe <control_pipe> [brightness_drv]\n", 
+	fprintf(stderr,"Usage: %s -uhDNS --log <log_file> --fifo <control_fifo> [brightness_drv]\n", 
 			pd.prog_name);
 }
 
@@ -81,12 +84,23 @@ void help() {
 		"-N\t--no-daemon\t\n"
 		"-S\t--syslog\t\n"
 		"-L\t--log <log file>\t\n"
-		"-p\t--pipe <control_pipe>\t\n");
+		"-f\t--fifo <control_fifo>\t\n");
 }
 
 const char * loglvl2str(int lvl);
 void start_backlightd();
+int lock_pid_file(const char *name);
+int open_ctl_fifo(const char *name);
 error_t daemonize();
+int reopen_fd(int fd, const char* name, mode_t mode);
+error_t reopen_stdio();
+void backlightd_loop();
+error_t execute_fs_content(FILE* fs);
+
+/** returns the position of first character in s not contained in naccept
+ * (an oposite function to strspn())
+ */
+char *strnspn(const char *s, const char *naccept);
 
 int main(int argc, char** argv) {
 	
@@ -101,7 +115,7 @@ int main(int argc, char** argv) {
 			{"no-daemon",no_argument,		0,  'N' },
 			{"syslog",   no_argument,		0,  's' },
 			{"log",      required_argument, 0,  'L' },
-			{"pipe",     required_argument,	0,  'p' },
+			{"fifo",     required_argument,	0,  'f' },
 			{0,			0,					0,  0 }};
 		const char *opt_string="uhDNsL:p:";
 		int c;
@@ -129,8 +143,8 @@ int main(int argc, char** argv) {
 		case 'L':
 			pd.log.fname=optarg;
 			break;
-		case 'p':
-			pd.pipe=optarg;
+		case 'f':
+			pd.fifo=optarg;
 			break;
 		case '?':
 			usage();
@@ -168,7 +182,7 @@ void start_backlightd() {
 	if(!pd.flag.daemon && pd.log.fname) {
 		pd.log.fs = fopen(pd.log.fname, "w");
 		if(!pd.log.fs) {
-			LOG(LOG_ERR, "open file %s failed with error %d:%s\n",
+			LOG(LOG_ERR, "open file %s failed with error %d:%s\n", 
 					pd.log.fname, errno, strerror(errno));
 		}
 	}
@@ -176,32 +190,109 @@ void start_backlightd() {
 	umask(0);
 	pd.pid_fd = lock_pid_file(pd.pid_file);
 	if(pd.pid_fd == -1) {
-		LOG(LOG_CRIT, "locking pidfile failed: seems the daemon allready running.");
+		LOG(LOG_CRIT, "locking pidfile failed: seems the daemon allready running.\n");
+		exit(EERR_LOCK_PIDFILE);
+	}
+	
+	pd.pid_fd = lock_pid_file(pd.pid_file);
+	if(pd.pid_fd == -1) {
+		LOG(LOG_CRIT, "openning control pipe failed.\n");
 		exit(EERR_LOCK_PIDFILE);
 	}
 
-	pd.pipe_fd = open_ctl_pipe(pd.pipe);
-	if(pd.pipe_fd == -1) {
-		LOG(LOG_CRIT, "creation of the control pipe failed.");
-		exit(EERR_LOCK_PIDFILE);
+	pd.fifo_fd = open_ctl_fifo(pd.fifo);
+	if(pd.fifo_fd == -1) {
+		LOG(LOG_CRIT, "creation of the control fifo failed.\n");
+		exit(EERR_CREATE_FIFO);
 	}
+
+//TODO: test here if interfase exists
 
 	if(pd.flag.daemon) {
 		if(daemonize() == -1) {
-			LOG(LOG_INFO, "Daemonized successfull.");
-			pd.daemonized=1;
-			if(reopen_stdio() != -1) {
-				LOG(LOG_INFO, "Reopened stdio descripters successfully.");
-			} else {
-				LOG(LOG_CRIT, "reopen stdio descripters failed.");
-				exit(EERR_REOPEN_DESCRIPTERS);
-			}
-		} else {
-			LOG(LOG_CRIT, "Daemonized failed. Exiting.");
+			LOG(LOG_CRIT, "Daemonized failed. Exiting.\n");
 			exit(EERR_DAEMONIZE_FAILED);
 		}
+		LOG(LOG_INFO, "Daemonized successfull.\n");
+		pd.daemonized=1;
+		if(reopen_stdio() != -1) {
+			LOG(LOG_INFO, "Reopened stdio descripters successfully.\n");
+		} else {
+			LOG(LOG_CRIT, "reopen stdio descripters failed.\n");
+			exit(EERR_REOPEN_DESCRIPTERS);
+		}
 	}
+	
+	backlightd_loop();
+}
 
+void backlightd_loop() {
+	FILE *fifo_fs=fdopen(pd.fifo_fd, "r");
+	while(1) {
+		fifo_fs = fdopen(pd.fifo_fd, "r");
+
+		if( fifo_fs == 0 ) {
+			LOG(LOG_CRIT, "fdopen control fifo failed with error %d:%s\n", 
+					errno, strerror(errno));
+			exit(EERR_FDOPEN_FIFO);
+		}
+
+		if( execute_fs_content(fifo_fs) == -1 ) { // function returns on EOF
+			LOG(LOG_CRIT, "read from control pipe failed.\n");
+			exit(EERR_FCLOSE_FIFO);
+		}
+
+		if(fclose(fifo_fs) == 0) {
+			LOG(LOG_CRIT, "fclose control fifo failed with error %d:%s\n", 
+					errno, strerror(errno));
+			exit(EERR_FCLOSE_FIFO);
+		}
+
+		pd.fifo_fd = open_ctl_fifo(pd.fifo);
+	}
+}
+
+error_t execute_fs_content(FILE* fs) {
+	char buf[COMMAND_BUFF_SZ];
+	char *rc;
+
+	do {
+		rc = fgets(buf, COMMAND_BUFF_SZ, fs);
+		if( !rc ) {
+			break;
+		}
+
+		execute_str_command(buf);
+
+	} while(1);
+
+	if(errno) {
+		LOG(LOG_ERR, "failed to read from file with error %d:%s\n", 
+			errno, strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+error_t execute_str_command(const char *str) {
+	char *cmd_start = ;
+	
+	switch(get_str_command(str)) {
+
+	}
+}
+
+char get_str_command(const char *str) {
+	if( str[0] ==
+}
+
+char *strnspn(const char *s, const char *naccept) {
+	size_t i;
+	for( i=0; s[i]!=0; i++) {
+		if(!strchr(naccept,s[i]))
+			break;
+	}
+	return s + i;
 }
 
 const char * loglvl2str(int lvl) {
@@ -218,21 +309,26 @@ const char * loglvl2str(int lvl) {
 	}
 }
 
-int open_ctl_pipe(const char *name) {
+int open_ctl_fifo(const char *name) {
 	int rv;
-	
-	rv = mkfifo(name, O_WRIGHT | O_CREAT | O_NO_CTTY | O_TRUNC, 0640);
+	struct stat sb;
+
+	rv = stat(name, &sb);
 	if( rv == -1 ) {
+		rv = mkfifo(name, 0620);
+		if( rv == -1 ) {
+			LOG(LOG_ERR, "failed to create fifo %s becouse of error %d:%s\n",
+				name, errno, strerror(errno));
+		}
+		return rv;
+	} else if(!S_ISFIFO(sb.st_mode)) {
+		LOG(LOG_ERR, "file %s exists but is not a fifo\n",	name);
+		rv = -1;
+		return rv;
+	} else if (	(rv = open(name, O_RDONLY)) == -1 ) {
 		LOG(LOG_ERR, "open file %s failed with error %d:%s\n",
 				name, errno, strerror(errno));
 	}
-	else if( lockf(rv, F_TLOCK, 0) == -1) {
-		LOG(LOG_ERR, "lock file %s failed with error %d:%s\n",
-				name, errno, strerror(errno));
-		close(rv);
-		rv = -1;
-	}
-
 	return rv;
 }
 
@@ -240,7 +336,7 @@ int open_ctl_pipe(const char *name) {
 int lock_pid_file(const char *name) {
 	int rv;
 
-	rv = open(name, O_WRIGHT | O_CREAT | O_NO_CTTY | O_TRUNC, 0640);
+	rv = open(name, O_WRONLY | O_CREAT | O_NOCTTY | O_TRUNC, 0640);
 	if( rv == -1 ) {
 		LOG(LOG_ERR, "open file %s failed with error %d:%s\n",
 				name, errno, strerror(errno));

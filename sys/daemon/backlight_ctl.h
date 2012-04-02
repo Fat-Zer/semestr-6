@@ -22,13 +22,21 @@ enum blc_errors_t {
 	BLC_CLOSEDIR_FAILED,
 	BLC_BAD_PATH,
 	BLC_NOT_DIR,
-	BLC_BAD_IFACE };
+	BLC_BAD_IFACE,
+	BLC_BAD_FILE_CONTENT
+};
 
 char *blc_get_iface_by_name(const char* name, int *err) BLC_WARN_UNUSED;
 
 char *blc_construct_iface_by_name(const char* name, int *err) BLC_WARN_UNUSED;
 
 bool blc_verify_iface(const char* iface, int *err);
+
+int blc_get_brightness(const char* iface, int *err);
+
+void blc_set_brightness(const char* iface, int val, int *err);
+
+int blc_get_max_brightness(const char* iface, int *err);
 
 
 #endif // BACKLIGHT_CTL_H

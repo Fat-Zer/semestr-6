@@ -9,8 +9,13 @@
 
 #include "backlight_ctl.h"
 
+#define BUF_BASE_SZ ((size_t)1 << 10)
+
 static const char *blc_default_iface_location="/sys/class/backlight";
 
+char *blc_pathcat(const char* dir, const char * name, int *err);
+char *blc_read_fs(FILE *fs, int *err);
+char *blc_read_iface_file(const char* iface, const char * name, int *err);
 
 char *blc_get_iface_by_name(const char* name, int *err) {
 	char *rv = blc_construct_iface_by_name(name, err);
@@ -77,20 +82,114 @@ bool blc_verify_iface(const char* iface, int *err) {
 }
 
 char *blc_construct_iface_by_name(const char* name, int *err) {
+	return blc_pathcat(blc_default_iface_location ,name, err);
+}
+
+int blc_get_brightness(const char* iface, int *err) {
+	return blc_read_iface_file_int(iface, "brightness", err);
+}
+
+void blc_set_brightness(const char* iface, int val, int *err) {
+	blc_wright_file_int()
+}
+
+int blc_get_max_brightness(const char* iface, int *err) {
+	return blc_read_iface_file_int(iface, "max_brightness", err);
+}
+
+char *blc_read_iface_file_int(const char* iface, const char * name, int *err) {
+	char* str = blc_read_iface_file(iface, "brightness", err);
+	unsigned rv;
+	int rc;
+	if( *err ) {
+		if( str ) {
+			free(str);
+		}
+		return -1;
+	}
+	rc = sscanf(str, "%d", &rv);
+
+	if( rc != 1 ) {
+		*err = BLC_BAD_FILE_CONTENT;
+		rv = 0;
+	}
+
+	free(str);
+	return rv;
+}
+
+char *blc_read_iface_file(const char* iface, const char * name, int *err) {
+	char* file= blc_pathcat(iface, name, err);
+	char *rv=0;
+	FILE *fs;
+	if( !file ) {
+		return 0;
+	}
+	fs = fopen(file, "r");
+	free(file);
+	if(!fs) {
+		*err = BLC_OPEN_FAILED;
+		return 0;
+	}
+	
+	rv = blc_read_fs(fs, err);
+	
+	if( fclose(fs) != 0 ) {
+		*err = BLC_CLOSE_FAILED;
+	}
+
+	return rv;
+}
+
+char *blc_read_fs(FILE *fs, int *err) {
+	size_t sz = BUF_BASE_SZ;
+	size_t readed = 0;
+	char *rv = malloc( BUF_BASE_SZ );
+	if( !rv ) {
+		*err = BLC_MALLOC_FAILED;
+		return 0;
+	}
+	
+
+	do {
+		size_t cur_readed = fread(rv + readed, 1, BUF_BASE_SZ, fs);
+		char *tmp = 0;
+		readed += cur_readed;
+		if( cur_readed < BUF_BASE_SZ )
+			break;
+		tmp = realloc(rv, sz += BUF_BASE_SZ);
+
+		if( !tmp ) {
+			*err = BLC_MALLOC_FAILED;
+			free(rv);
+			return 0;
+		}
+	} while(1);
+
+	if( !feof(fread) ) {
+		*err = BLC_READ_FAILED;
+		free(rv);
+		return 0;
+	}
+
+	return rv;
+}
+
+blc_pathcat(const char* dir, const char * name, int *err) {
 	char *rv = 0;
-	size_t def_loc_len = strlen(blc_default_iface_location);
+	size_t dir_len = strlen(dir);
 	size_t name_len = strlen(name);
 
-	rv=malloc(name_len+def_loc_len+2);
+	rv=malloc(name_len+dir_len+2);
 
 	if(!rv) {
 		*err=BLC_MALLOC_FAILED;
 		return 0;
 	}
 
-	strcpy(rv, blc_default_iface_location);
-	*(rv+def_loc_len) = '/';
-	strcpy(rv+def_loc_len+1, name);
+	strcpy(rv, dir);
+	*(rv+dir_len) = '/';
+	strcpy(rv+dir_len+1, name);
 	
 	return rv;
 }
