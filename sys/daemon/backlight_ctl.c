@@ -9,7 +9,8 @@
 
 #include "backlight_ctl.h"
 
-#define BUF_BASE_SZ ((size_t)1 << 10)
+#define BUF_BASE_SZ ((size_t)1UL << 10L)
+#define INT_BUF_SZ ((size_t)0x20UL)
 
 static const char *blc_default_iface_location="/sys/class/backlight";
 
@@ -90,15 +91,19 @@ int blc_get_brightness(const char* iface, int *err) {
 }
 
 void blc_set_brightness(const char* iface, int val, int *err) {
-	blc_wright_file_int()
+	return blc_write_iface_file_int(iface, "brightness", int val, int *err);
 }
 
 int blc_get_max_brightness(const char* iface, int *err) {
 	return blc_read_iface_file_int(iface, "max_brightness", err);
 }
 
+char *blc_write_iface_file_int(const char* iface, const char * name, int *err) {
+	
+}
+
 char *blc_read_iface_file_int(const char* iface, const char * name, int *err) {
-	char* str = blc_read_iface_file(iface, "brightness", err);
+	char* str = blc_read_iface_file(iface, name, err);
 	unsigned rv;
 	int rc;
 	if( *err ) {

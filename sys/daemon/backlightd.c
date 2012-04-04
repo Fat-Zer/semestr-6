@@ -25,6 +25,8 @@
 #define DEFAULT_CONTROL_PIPE "/var/run/backlightd.fifo"
 #define DEFAULT_PID_FILE "/var/run/backlightd.pid"
 #define COMMAND_BUFF_SZ ((size_t)1 << 10)
+#define SPACE_SYMBOLS " \t\n\v"
+
 typedef int error_t;
 
 enum exit_error_t {
@@ -175,6 +177,8 @@ int main(int argc, char** argv) {
 }
 
 void start_backlightd() {
+	int err;
+
 	if(pd.log.syslog) {
 		openlog(pd.prog_name, 0, pd.flag.daemon ? LOG_DAEMON : LOG_USER);
 	}
@@ -206,7 +210,11 @@ void start_backlightd() {
 		exit(EERR_CREATE_FIFO);
 	}
 
-//TODO: test here if interfase exists
+	pd.light.iface = blc_construct_iface_by_name(pd.light.iface_name,&err)
+	if( !pd.light.iface ) {
+		LOG(LOG_CRIT, "bad interface.\n");
+		exit(EERR_CREATE_FIFO);
+	}
 
 	if(pd.flag.daemon) {
 		if(daemonize() == -1) {
@@ -224,6 +232,7 @@ void start_backlightd() {
 	}
 	
 	backlightd_loop();
+	//TODO: return and free the memory for interface name
 }
 
 void backlightd_loop() {
@@ -275,25 +284,56 @@ error_t execute_fs_content(FILE* fs) {
 }
 
 error_t execute_str_command(const char *str) {
-	char *cmd_start = ;
-	
-	switch(get_str_command(str)) {
+	char *cmd_start = strspn(str, SPACE_SYMBOLS);
+	char cmd = get_str_command(cmd_start)
+	unsigned int new_brt;
+
+	switch(cmd) {
+	case 's': 
+	case '.':
+		sscanf(cmd_start, "%ld", &new_brt);
+		break;
+	case '+':
+	case 'i':
+		sscanf(cmd_start+1, "%ld", &new_brt);
+		break;
 
 	}
+		
 }
 
 char get_str_command(const char *str) {
-	if( str[0] ==
+	switch(str[0]) {
+		case '+':
+			if( strchr(str, '%') ) {
+				return 'i';
+			} else {
+				return '+';
+			}
+		case '-':
+			if( strchr(str, '%') ) {
+				return 'd';
+			} else {
+				return '-';
+			}
+		default:
+			if( isdigit(str[0]) ) {
+				if( strchr(str, '%') ) {
+					return 's';
+				} else {
+					return '.';
+				}
+			} else 
+				return 0;
+	}
 }
 
 char *strnspn(const char *s, const char *naccept) {
 	size_t i;
-	for( i=0; s[i]!=0; i++) {
-		if(!strchr(naccept,s[i]))
-			break;
-	}
+	for( i=0; s[i]!=0 && !strchr(naccept, s[i]); i++) {}
 	return s + i;
 }
+
 
 const char * loglvl2str(int lvl) {
 	switch(lvl) {
