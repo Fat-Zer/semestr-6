@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 
@@ -16,6 +17,10 @@ static const char *blc_default_iface_location="/sys/class/backlight";
 char *blc_pathcat(const char* dir, const char * name, int *err);
 char *blc_read_fs(FILE *fs, int *err);
 char *blc_read_iface_file(const char* iface, const char * name, int *err);
+void blc_write_iface_file_int(const char* iface, const char * name, int val, int *err);
+int blc_read_iface_file_int(const char* iface, const char * name, int *err);
+FILE* blc_open_iface_file(const char* iface, const char * name, const char *mode, int *err);
+char *blc_pathcat(const char* dir, const char * name, int *err);
 
 char *blc_get_iface_by_name(const char* name, int *err) {
 	char *rv = blc_construct_iface_by_name(name, err);
@@ -94,10 +99,10 @@ int blc_get_max_brightness(const char* iface, int *err) {
 }
 
 void blc_set_brightness(const char* iface, int val, int *err) {
-	blc_wright_file_int(const char *iface, "brightness",int val, int *err);
+	blc_write_iface_file_int(iface, "brightness", val, err);
 }
 
-char *blc_read_iface_file_int(const char* iface, const char * name, int *err) {
+int blc_read_iface_file_int(const char* iface, const char * name, int *err) {
 	char* str = blc_read_iface_file(iface, name, err);
 	unsigned rv;
 	int rc;
@@ -121,7 +126,7 @@ char *blc_read_iface_file_int(const char* iface, const char * name, int *err) {
 char *blc_read_iface_file(const char* iface, const char * name, int *err) {
 	char *rv=0;
 	
-	FILE *fs = blc_open_file(iface, name, "w", err);
+	FILE *fs = blc_open_iface_file(iface, name, "w", err);
 	if(!fs) {
 		return 0;
 	}
@@ -161,7 +166,7 @@ char *blc_read_fs(FILE *fs, int *err) {
 		}
 	} while(1);
 
-	if( !feof(fread) ) {
+	if( !feof(fs) ) {
 		*err = BLC_READ_FAILED;
 		free(rv);
 		return 0;
@@ -170,7 +175,7 @@ char *blc_read_fs(FILE *fs, int *err) {
 	return rv;
 }
 
-blc_pathcat(const char* dir, const char * name, int *err) {
+char *blc_pathcat(const char* dir, const char * name, int *err) {
 	char *rv = 0;
 	size_t dir_len = strlen(dir);
 	size_t name_len = strlen(name);
@@ -205,7 +210,7 @@ FILE* blc_open_iface_file(const char* iface, const char * name, const char *mode
 }
 
 void blc_write_iface_file_int(const char* iface, const char * name, int val, int *err) {
-	FILE *fs = blc_open_file(iface, name, "w", err);
+	FILE *fs = blc_open_iface_file(iface, name, "w", err);
 	if(!fs) {
 		return;
 	}
@@ -217,21 +222,7 @@ void blc_write_iface_file_int(const char* iface, const char * name, int val, int
 	}
 }
 
-blc_pathcat(const char* dir, const char * name, int *err) {
-	char *rv = 0;
-	size_t dir_len = strlen(dir);
-	size_t name_len = strlen(name);
-
-	rv=malloc(name_len+dir_len+2);
-
-	if(!rv) {
-		*err=BLC_MALLOC_FAILED;
-		return 0;
-	}
-
-	strcpy(rv, dir);
-	*(rv+dir_len) = '/';
-	strcpy(rv+dir_len+1, name);
-	
-	return rv;
+char *blc_strerror(int err) {
+	//TODO: add errors here
+	return "";
 }

@@ -38,5 +38,6 @@ void blc_set_brightness(const char* iface, int val, int *err);
 
 int blc_get_max_brightness(const char* iface, int *err);
 
+char *blc_strerror(int err);
 
 #endif // BACKLIGHT_CTL_H

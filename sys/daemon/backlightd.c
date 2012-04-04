@@ -5,10 +5,13 @@
 #include <syslog.h>
 #include <getopt.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+
+#include "backlight_ctl.h"
 
 #define LOG(lvl, ...) do { \
 		if(pd.log.syslog) { syslog(lvl, __VA_ARGS__); } \
@@ -60,7 +63,7 @@ static struct {
 	struct {
 		char* iface;
 		const char* iface_name;
-	} ligth;
+	} light;
 } pd = { 
 	.prog_name=0,
 	.daemonized=0, 
@@ -70,7 +73,7 @@ static struct {
 	.fifo_fd=-1,
 	.log={.fname=0, .fs=0, .syslog=0}, 
 	.flag={.help=0, .usage=0, .daemon=1},
-	.ligth={.iface=0, .iface_name="intel_backlight"} };
+	.light={.iface=0, .iface_name="intel_backlight"} };
 
 void usage() {
 	fprintf(stderr,"Usage: %s -uhDNS --log <log_file> --fifo <control_fifo> [brightness_drv]\n", 
@@ -98,6 +101,8 @@ int reopen_fd(int fd, const char* name, mode_t mode);
 error_t reopen_stdio();
 void backlightd_loop();
 error_t execute_fs_content(FILE* fs);
+error_t execute_str_command(const char *str);
+char get_str_command(const char *str);
 
 /** returns the position of first character in s not contained in naccept
  * (an oposite function to strspn())
@@ -162,7 +167,7 @@ int main(int argc, char** argv) {
 		usage();
 		exit(3);
 	} else if (argc - optind != 1) {
-		pd.ligth.iface_name = argv[optind];
+		pd.light.iface_name = argv[optind];
 	}
 	
 	if(pd.flag.help) {
@@ -210,7 +215,7 @@ void start_backlightd() {
 		exit(EERR_CREATE_FIFO);
 	}
 
-	pd.light.iface = blc_construct_iface_by_name(pd.light.iface_name,&err)
+	pd.light.iface = blc_construct_iface_by_name(pd.light.iface_name,&err);
 	if( !pd.light.iface ) {
 		LOG(LOG_CRIT, "bad interface.\n");
 		exit(EERR_CREATE_FIFO);
@@ -284,22 +289,69 @@ error_t execute_fs_content(FILE* fs) {
 }
 
 error_t execute_str_command(const char *str) {
-	char *cmd_start = strspn(str, SPACE_SYMBOLS);
-	char cmd = get_str_command(cmd_start)
-	unsigned int new_brt;
+	const char *cmd_start = str + strspn(str, SPACE_SYMBOLS);
+	char cmd;
+	int err, rc;
+	long new_brt, max_brt, cur_brt;
+	max_brt = blc_get_max_brightness(pd.light.iface, &err);
+	if(err) {
+		LOG(LOG_ERR, "geting max brightness failed with error %d: %s",
+				err, blc_strerror(err));
+		errno = 0;
+		return -1;
+	}
 
-	switch(cmd) {
-	case 's': 
-	case '.':
-		sscanf(cmd_start, "%ld", &new_brt);
-		break;
-	case '+':
-	case 'i':
-		sscanf(cmd_start+1, "%ld", &new_brt);
-		break;
+	cur_brt = blc_get_brightness(pd.light.iface, &err);
+	if(err) {
+		LOG(LOG_ERR, "geting current brightness failed with error %d: %s",
+				err, blc_strerror(err));
+		errno = 0;
+		return -1;
+	}
+	
+	cmd = get_str_command(cmd_start);
+	if( cmd==0 ) {
+		LOG(LOG_ERR, "bad command: %s", cmd_start);
+		return -1;
 
 	}
+
+	if( strchr("s.", cmd) ) {
+		rc = sscanf(cmd_start, "%ld", &new_brt);
+	} else if(strchr("di-+", cmd)) {
+		rc = sscanf(cmd_start+1, "%ld", &new_brt);
+	}
 		
+	if( rc!=1 ) {
+		LOG(LOG_ERR, "bad command: %s", cmd_start);
+		return -1;
+
+	}
+
+	if( strchr("sid", cmd) ) {
+		new_brt = (new_brt * max_brt) / 100;
+	}
+
+	if( strchr("i+", cmd) ) {
+		new_brt = cur_brt + new_brt;
+	} else if( strchr("d-", cmd) ) {
+		new_brt = cur_brt - new_brt;
+	}
+	if( new_brt > max_brt ) {
+		new_brt = max_brt;
+	} else if( new_brt < 0 ) {
+		new_brt = 0;
+	}
+	
+	blc_set_brightness(pd.light.iface, new_brt, &err);
+	if(err) {
+		LOG(LOG_ERR, "setting brightness failed with error %d: %s",
+				err, blc_strerror(err));
+		errno = 0;
+		return -1;
+	}
+
+	return 0;
 }
 
 char get_str_command(const char *str) {
@@ -328,12 +380,13 @@ char get_str_command(const char *str) {
 	}
 }
 
+#if 0
 char *strnspn(const char *s, const char *naccept) {
 	size_t i;
 	for( i=0; s[i]!=0 && !strchr(naccept, s[i]); i++) {}
 	return s + i;
 }
-
+#endif // 0
 
 const char * loglvl2str(int lvl) {
 	switch(lvl) {
