@@ -126,7 +126,7 @@ int blc_read_iface_file_int(const char* iface, const char * name, int *err) {
 char *blc_read_iface_file(const char* iface, const char * name, int *err) {
 	char *rv=0;
 	
-	FILE *fs = blc_open_iface_file(iface, name, "w", err);
+	FILE *fs = blc_open_iface_file(iface, name, "r", err);
 	if(!fs) {
 		return 0;
 	}
@@ -223,6 +223,21 @@ void blc_write_iface_file_int(const char* iface, const char * name, int val, int
 }
 
 char *blc_strerror(int err) {
-	//TODO: add errors here
+	switch(err) {
+	case BLC_OK:	return "BLC_OK";
+	case BLC_MALLOC_FAILED:	return "BLC_MALLOC_FAILED";
+	case BLC_READ_FAILED:	return "BLC_READ_FAILED";
+	case BLC_WRIGHT_FAILED:	return "BLC_WRIGHT_FAILED";
+	case BLC_OPEN_FAILED:	return "BLC_OPEN_FAILED";
+	case BLC_CLOSE_FAILED:	return "BLC_CLOSE_FAILED";
+	case BLC_STAT_FAILED:	return "BLC_STAT_FAILED";
+	case BLC_OPENDIR_FAILED:                return "BLC_OPENDIR_FAILED";
+	case BLC_READDIR_FAILED:	return "BLC_READDIR_FAILED";
+	case BLC_CLOSEDIR_FAILED:	return "BLC_CLOSEDIR_FAILED";
+	case BLC_BAD_PATH:	return "BLC_BAD_PATH";
+	case BLC_NOT_DIR:	return "BLC_NOT_DIR";
+	case BLC_BAD_IFACE:	return "BLC_BAD_IFACE";
+	case BLC_BAD_FILE_CONTENT:	return "BLC_BAD_FILE_CONTENT";
+	}
 	return "";
 }

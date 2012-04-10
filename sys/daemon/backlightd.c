@@ -9,6 +9,7 @@
 
 #include <unistd.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <sys/stat.h>
 
 #include "backlight_ctl.h"
@@ -76,7 +77,7 @@ static struct {
 	.light={.iface=0, .iface_name="intel_backlight"} };
 
 void usage() {
-	fprintf(stderr,"Usage: %s -uhDNS --log <log_file> --fifo <control_fifo> [brightness_drv]\n", 
+	fprintf(stderr,"Usage: %s -uhDNs --log <log_file> --fifo <control_fifo> [brightness_drv]\n", 
 			pd.prog_name);
 }
 
@@ -87,7 +88,7 @@ void help() {
 		"-h\t--help\tshow this help message\n"
 		"-D\t--daemon\t\n"
 		"-N\t--no-daemon\t\n"
-		"-S\t--syslog\t\n"
+		"-s\t--syslog\t\n"
 		"-L\t--log <log file>\t\n"
 		"-f\t--fifo <control_fifo>\t\n");
 }
@@ -103,6 +104,8 @@ void backlightd_loop();
 error_t execute_fs_content(FILE* fs);
 error_t execute_str_command(const char *str);
 char get_str_command(const char *str);
+void end_backlightd();
+void on_sigterm(int);
 
 /** returns the position of first character in s not contained in naccept
  * (an oposite function to strspn())
@@ -197,28 +200,16 @@ void start_backlightd() {
 	}
 
 	umask(0);
-	pd.pid_fd = lock_pid_file(pd.pid_file);
-	if(pd.pid_fd == -1) {
-		LOG(LOG_CRIT, "locking pidfile failed: seems the daemon allready running.\n");
-		exit(EERR_LOCK_PIDFILE);
-	}
-	
-	pd.pid_fd = lock_pid_file(pd.pid_file);
-	if(pd.pid_fd == -1) {
-		LOG(LOG_CRIT, "openning control pipe failed.\n");
-		exit(EERR_LOCK_PIDFILE);
-	}
-
-	pd.fifo_fd = open_ctl_fifo(pd.fifo);
-	if(pd.fifo_fd == -1) {
-		LOG(LOG_CRIT, "creation of the control fifo failed.\n");
-		exit(EERR_CREATE_FIFO);
-	}
-
 	pd.light.iface = blc_construct_iface_by_name(pd.light.iface_name,&err);
 	if( !pd.light.iface ) {
 		LOG(LOG_CRIT, "bad interface.\n");
 		exit(EERR_CREATE_FIFO);
+	}
+	
+	pd.pid_fd = lock_pid_file(pd.pid_file);
+	if(pd.pid_fd == -1) {
+		LOG(LOG_CRIT, "locking pid file failed.\n");
+		exit(EERR_LOCK_PIDFILE);
 	}
 
 	if(pd.flag.daemon) {
@@ -235,9 +226,60 @@ void start_backlightd() {
 			exit(EERR_REOPEN_DESCRIPTERS);
 		}
 	}
+
+	// flock сбрасывается на fork()
+	// => нам надо переоткрыть файл
+	close(pd.pid_fd);
+
+	pd.pid_fd = lock_pid_file(pd.pid_file);
+	if(pd.pid_fd == -1) {
+		LOG(LOG_CRIT, "locking pid file failed.\n");
+		exit(EERR_LOCK_PIDFILE);
+	}
+
+	atexit(end_backlightd); // сопли
+
+	if(signal(SIGTERM, on_sigterm)==SIG_ERR) {
+		LOG(LOG_CRIT, "failed to handle sigterm.\n");
+		exit(EERR_CREATE_FIFO);
+	}
 	
+	pd.fifo_fd = open_ctl_fifo(pd.fifo);
+	if(pd.fifo_fd == -1) {
+		LOG(LOG_CRIT, "creation of the control fifo failed.\n");
+		exit(EERR_CREATE_FIFO);
+	}
+	
+
 	backlightd_loop();
 	//TODO: return and free the memory for interface name
+}
+
+void end_backlightd() {
+	if(pd.pid_fd!=-1) {
+		if(close(pd.pid_fd) < 0) {
+			LOG(LOG_ERR, "close pid file failed with error %d: %s\n",
+				errno, strerror(errno));
+		} else {
+			LOG(LOG_INFO, "pid file closed successfully\n");
+		}
+	}
+
+	if(pd.pid_file) {
+		if(unlink(pd.pid_file) < 0) {
+			LOG(LOG_ERR, "remove pid file failed with error %d: %s\n",
+				errno, blc_strerror(errno));
+		} else {
+			LOG(LOG_INFO, "pid file removed successfully\n");
+		}
+	}
+	if(pd.light.iface) {
+		free(pd.light.iface);
+	}
+}
+
+void on_sigterm(int sig) {
+	exit(0);
 }
 
 void backlightd_loop() {
@@ -256,7 +298,7 @@ void backlightd_loop() {
 			exit(EERR_FCLOSE_FIFO);
 		}
 
-		if(fclose(fifo_fs) == 0) {
+		if(fclose(fifo_fs) != 0) {
 			LOG(LOG_CRIT, "fclose control fifo failed with error %d:%s\n", 
 					errno, strerror(errno));
 			exit(EERR_FCLOSE_FIFO);
@@ -291,11 +333,11 @@ error_t execute_fs_content(FILE* fs) {
 error_t execute_str_command(const char *str) {
 	const char *cmd_start = str + strspn(str, SPACE_SYMBOLS);
 	char cmd;
-	int err, rc;
+	int err=0, rc=0;
 	long new_brt, max_brt, cur_brt;
 	max_brt = blc_get_max_brightness(pd.light.iface, &err);
 	if(err) {
-		LOG(LOG_ERR, "geting max brightness failed with error %d: %s",
+		LOG(LOG_ERR, "geting max brightness failed with error %d: %s\n",
 				err, blc_strerror(err));
 		errno = 0;
 		return -1;
@@ -303,7 +345,7 @@ error_t execute_str_command(const char *str) {
 
 	cur_brt = blc_get_brightness(pd.light.iface, &err);
 	if(err) {
-		LOG(LOG_ERR, "geting current brightness failed with error %d: %s",
+		LOG(LOG_ERR, "geting current brightness failed with error %d: %s\n",
 				err, blc_strerror(err));
 		errno = 0;
 		return -1;
@@ -311,7 +353,7 @@ error_t execute_str_command(const char *str) {
 	
 	cmd = get_str_command(cmd_start);
 	if( cmd==0 ) {
-		LOG(LOG_ERR, "bad command: %s", cmd_start);
+		LOG(LOG_ERR, "bad command: %s\n", cmd_start);
 		return -1;
 
 	}
@@ -427,20 +469,28 @@ int open_ctl_fifo(const char *name) {
 
 
 int lock_pid_file(const char *name) {
-	int rv;
-
+	int rv=0;
 	rv = open(name, O_WRONLY | O_CREAT | O_NOCTTY | O_TRUNC, 0640);
 	if( rv == -1 ) {
 		LOG(LOG_ERR, "open file %s failed with error %d:%s\n",
 				name, errno, strerror(errno));
-	}
-	else if( lockf(rv, F_TLOCK, 0) == -1) {
-		LOG(LOG_ERR, "lock file %s failed with error %d:%s\n",
+	} else {
+		char buf[32]="";
+		int len;
+		snprintf(buf, 32, "%d\n", getpid());
+		len = strlen(buf);
+		if(write(rv, buf, len)!=len) {
+			LOG(LOG_ERR, "write lock file %s failed with error %d:%s\n",
 				name, errno, strerror(errno));
-		close(rv);
-		rv = -1;
+			close(rv);
+		} else if( lockf(rv, F_TLOCK, 0) == -1) {
+			LOG(LOG_ERR, "lock file %s failed with error %d:%s\n",
+					name, errno, strerror(errno));
+			close(rv);
+			rv = -1;
+		}
 	}
-
+	
 	return rv;
 }
 
