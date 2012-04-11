@@ -162,7 +162,6 @@ int main(int argc, char** argv) {
 			exit(EERR_BAD_KEY);
 
 		default:
-			fprintf(stderr, "?? getopt returned character code 0%o ??\n", c);
 			usage();
 			exit(EERR_GETOPT_FAILED);
 		}
