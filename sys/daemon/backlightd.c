@@ -40,6 +40,7 @@ enum exit_error_t {
 	EERR_DAEMONIZE_FAILED,
 	EERR_REOPEN_DESCRIPTERS,
 	EERR_LOCK_PIDFILE,
+	EERR_BAD_IFACE,
 	EERR_CREATE_FIFO,
 	EERR_FCLOSE_FIFO,
 	EERR_FDOPEN_FIFO };
@@ -74,7 +75,7 @@ static struct {
 	.fifo_fd=-1,
 	.log={.fname=0, .fs=0, .syslog=0}, 
 	.flag={.help=0, .usage=0, .daemon=1},
-	.light={.iface=0, .iface_name="intel_backlight"} };
+	.light={.iface=0, .iface_name=0} };
 
 void usage() {
 	fprintf(stderr,"Usage: %s -uhDNs --log <log_file> --fifo <control_fifo> [brightness_drv]\n", 
@@ -169,7 +170,7 @@ int main(int argc, char** argv) {
 	if(argc - optind > 1) {
 		usage();
 		exit(3);
-	} else if (argc - optind != 1) {
+	} else if (argc - optind == 1) {
 		pd.light.iface_name = argv[optind];
 	}
 	
@@ -185,7 +186,7 @@ int main(int argc, char** argv) {
 }
 
 void start_backlightd() {
-	int err;
+	int err = 0;
 
 	if(pd.log.syslog) {
 		openlog(pd.prog_name, 0, pd.flag.daemon ? LOG_DAEMON : LOG_USER);
@@ -198,14 +199,24 @@ void start_backlightd() {
 					pd.log.fname, errno, strerror(errno));
 		}
 	}
+	
+	if( !pd.light.iface_name) {
+		pd.light.iface = blc_get_first_iface(&err);		
+		if( !pd.light.iface ) {
+			LOG(LOG_CRIT, "no interface found\n");
+			exit(EERR_BAD_IFACE);
+		}
+	} else {
+		pd.light.iface = blc_construct_iface_by_name(pd.light.iface_name,&err);
+		if( !pd.light.iface ) {
+			LOG(LOG_CRIT, "bad interface specified.\n");
+			exit(EERR_BAD_IFACE);
+		}
+	}
+
+	LOG(LOG_INFO, "Selected interface %s for control.\n", pd.light.iface);
 
 	umask(0);
-	pd.light.iface = blc_construct_iface_by_name(pd.light.iface_name,&err);
-	if( !pd.light.iface ) {
-		LOG(LOG_CRIT, "bad interface.\n");
-		exit(EERR_CREATE_FIFO);
-	}
-	
 	pd.pid_fd = lock_pid_file(pd.pid_file);
 	if(pd.pid_fd == -1) {
 		LOG(LOG_CRIT, "locking pid file failed.\n");
@@ -249,7 +260,6 @@ void start_backlightd() {
 		LOG(LOG_CRIT, "creation of the control fifo failed.\n");
 		exit(EERR_CREATE_FIFO);
 	}
-	
 
 	backlightd_loop();
 	//TODO: return and free the memory for interface name
@@ -470,7 +480,7 @@ int open_ctl_fifo(const char *name) {
 
 int lock_pid_file(const char *name) {
 	int rv=0;
-	rv = open(name, O_WRONLY | O_CREAT | O_NOCTTY | O_TRUNC, 0640);
+	rv = open(name, O_WRONLY | O_CREAT | O_NOCTTY | O_TRUNC, 0644);
 	if( rv == -1 ) {
 		LOG(LOG_ERR, "open file %s failed with error %d:%s\n",
 				name, errno, strerror(errno));

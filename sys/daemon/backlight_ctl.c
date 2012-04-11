@@ -36,13 +36,53 @@ char *blc_get_iface_by_name(const char* name, int *err) {
 	}
 }
 
+char *blc_get_first_iface(int *err) {
+	DIR *ls_iface=0;
+	struct dirent *de=0;
+	char *rv;
+
+	ls_iface = opendir(blc_default_iface_location);
+	if(!ls_iface) {
+		switch(errno) {
+		case ENOTDIR:
+			*err = BLC_NOT_DIR;
+			errno = 0;
+			break;
+		case ENOENT:
+			*err = BLC_BAD_PATH;
+			errno = 0;
+			break;
+		default:
+			*err = BLC_OPENDIR_FAILED;
+		}
+		return 0;
+	}
+
+	while((de=readdir(ls_iface)) != 0) {
+		bool found;
+		rv = blc_construct_iface_by_name(de->d_name, err);
+		if( rv ) {
+			found = blc_verify_iface(rv, err);
+			if( found ) { 
+				return rv;
+			}
+		}
+
+		free(rv);
+	}
+
+	*err=BLC_IFACE_NOT_FOUND;
+	closedir(ls_iface);
+	return 0;
+}
+
 bool blc_verify_iface(const char* iface, int *err) {
 	DIR *ifaced=0;
 	struct dirent *de=0;
 	bool has_brightness=0, has_max_brightness=0;
 
 	ifaced = opendir(iface);
-    if(!ifaced) {
+	if(!ifaced) {
 		switch(errno) {
 		case ENOTDIR:
 			*err = BLC_NOT_DIR;
@@ -238,6 +278,7 @@ char *blc_strerror(int err) {
 	case BLC_NOT_DIR:	return "BLC_NOT_DIR";
 	case BLC_BAD_IFACE:	return "BLC_BAD_IFACE";
 	case BLC_BAD_FILE_CONTENT:	return "BLC_BAD_FILE_CONTENT";
+	case BLC_IFACE_NOT_FOUND:	return "BLC_IFACE_NOT_FOUND";
 	}
 	return "";
 }
