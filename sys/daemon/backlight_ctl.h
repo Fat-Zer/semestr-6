@@ -23,10 +23,12 @@ enum blc_errors_t {
 	BLC_BAD_PATH,
 	BLC_NOT_DIR,
 	BLC_BAD_IFACE,
+	BLC_IFACE_NOT_FOUND,
 	BLC_BAD_FILE_CONTENT
 };
 
 char *blc_get_iface_by_name(const char* name, int *err) BLC_WARN_UNUSED;
+char *blc_get_first_iface(int *err) BLC_WARN_UNUSED;
 
 char *blc_construct_iface_by_name(const char* name, int *err) BLC_WARN_UNUSED;
 
