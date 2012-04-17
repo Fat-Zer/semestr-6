@@ -1,21 +1,22 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "DocumentKeeper.h"
+#include "Document.h"
 
-MainWindow::MainWindow(DocumentMediator* dm_, QWidget *parent) :
+MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow),
-    dm(dm_)
+    ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    connect(DocumentKeeper::instance(), SIGNAL(documentAdded(Document*)),
+            this, SLOT(addDocumentView(Document*)));
 }
 
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
     delete ui;
 }
 
-void MainWindow::changeEvent(QEvent *e)
-{
+void MainWindow::changeEvent(QEvent *e) {
     QMainWindow::changeEvent(e);
     switch (e->type()) {
     case QEvent::LanguageChange:
@@ -24,4 +25,9 @@ void MainWindow::changeEvent(QEvent *e)
     default:
         break;
     }
+}
+
+void MainWindow::addDocumentView(Document* doc) {
+    ui->docs->addTab(doc->settingWidget(this), doc->name());
+
 }

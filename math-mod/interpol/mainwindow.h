@@ -3,7 +3,8 @@
 
 #include <QMainWindow>
 
-class DocumentMediator;
+class DocumentKeeper;
+class Document;
 
 namespace Ui {
     class MainWindow;
@@ -14,14 +15,14 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(DocumentMediator* dm_, QWidget *parent = 0);
+    explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 protected:
     void changeEvent(QEvent *e);
-
+public slots:
+    void addDocumentView(Document* doc);
 private:
     Ui::MainWindow *ui;
-    DocumentMediator *dm;
 };
 
 #endif // MAINWINDOW_H

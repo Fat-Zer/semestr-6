@@ -7,11 +7,19 @@ TEMPLATE = app
 SOURCES += main.cpp\
         mainwindow.cpp \
     csvopendialog.cpp \
-    documentmediator.cpp
+    Document.cpp \
+    DocumentKeeper.cpp \
+    TableDocument.cpp \
+    NonregularTableModel.cpp
 
 HEADERS  += mainwindow.h \
     csvopendialog.h \
-    documentmediator.h
+    Document.h \
+    DocumentKeeper.h \
+    TableDocument.h \
+    NonregularTableModel.h \
+    Types.h \
+    Vertex.h
 
 FORMS += \
     mainwindow.ui \

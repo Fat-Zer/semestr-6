@@ -1,12 +1,12 @@
 #include <QtGui/QApplication>
 #include "mainwindow.h"
-#include "documentmediator.h"
+#include "DocumentKeeper.h"
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    DocumentMediator dm;
-    MainWindow w(&dm);
+    MainWindow w(0);
+    DocumentKeeper::instance(&w);
     w.show();
 
     return a.exec();
