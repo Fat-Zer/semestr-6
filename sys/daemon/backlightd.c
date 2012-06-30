@@ -12,6 +12,10 @@
 #include <signal.h>
 #include <sys/stat.h>
 
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 #include "backlight_ctl.h"
 
 #define LOG(lvl, ...) do { \
@@ -26,10 +30,9 @@
 
 #define DEBUG_LOG( ... ) LOG(LOG_DEBUG, __VA_ARGS__)
 
-#define DEFAULT_CONTROL_PIPE "/var/run/backlightd.fifo"
+#define DEFAULT_CONTROL_FIFO "/var/run/backlightd.fifo"
 #define DEFAULT_PID_FILE "/var/run/backlightd.pid"
 #define COMMAND_BUFF_SZ ((size_t)1 << 10)
-#define SPACE_SYMBOLS " \t\n\v"
 
 typedef int error_t;
 
@@ -48,10 +51,17 @@ enum exit_error_t {
 static struct {
 	const char* prog_name;
 	bool daemonized;
-	const char *fifo;
-	int fifo_fd;
 	const char *pid_file;
 	int pid_fd;
+	struct {
+		const char* l_name;
+		struct addrinfo l_addr;
+		int id;
+	} socket;
+	struct {
+		const char *name;
+		int fd;
+	} fifo;
 	struct {
 		char *fname;
 		FILE *fs;
@@ -61,43 +71,54 @@ static struct {
 		bool help;
 		bool usage;
 		bool daemon;
+		bool fifo_ctl;
+		bool socket_ctl;
 	} flag;
 	struct {
 		char* iface;
 		const char* iface_name;
 	} light;
+	struct {
+		struct {
+			
+		} msg_que;
+	} itc;
 } pd = { 
 	.prog_name=0,
 	.daemonized=0, 
 	.pid_file=DEFAULT_PID_FILE,
 	.pid_fd=-1,
-	.fifo=DEFAULT_CONTROL_PIPE,
-	.fifo_fd=-1,
+	.socket={.l_name=0, .l_addr={0,0}, .id=-1},
+	.fifo={.name=DEFAULT_CONTROL_FIFO, .fd=-1},
 	.log={.fname=0, .fs=0, .syslog=0}, 
-	.flag={.help=0, .usage=0, .daemon=1},
+	.flag={.help=0, .usage=0, .daemon=1, .fifo_ctl=0, .socket_ctl=0},
 	.light={.iface=0, .iface_name=0} };
 
 void usage() {
-	fprintf(stderr,"Usage: %s -uhDNs --log <log_file> --fifo <control_fifo> [brightness_drv]\n", 
+	fprintf(stderr,"Usage: %s -uhDNs --log log_file --fifo control_fifo\n"
+					"\t--listen host:port [brightness_drv]\n", 
 			pd.prog_name);
 }
 
 void help() {
 	usage();
+	// TODO: finish the help
 	fprintf(stderr,
 		"-u\t--usage\tshow usage message\n"
 		"-h\t--help\tshow this help message\n"
 		"-D\t--daemon\t\n"
 		"-N\t--no-daemon\t\n"
 		"-s\t--syslog\t\n"
-		"-L\t--log <log file>\t\n"
-		"-f\t--fifo <control_fifo>\t\n");
+		"-L\t--log log file\t\n"
+		"-l\t--listen host:port\ta host port to listen\n"
+		"-f\t--fifo<control_fifo\t\n");
 }
 
 const char * loglvl2str(int lvl);
 void start_backlightd();
 int lock_pid_file(const char *name);
 int open_ctl_fifo(const char *name);
+int open_ctl_socket(const char *name, struct addrinfo *addr);
 error_t daemonize();
 int reopen_fd(int fd, const char* name, mode_t mode);
 error_t reopen_stdio();
@@ -126,7 +147,8 @@ int main(int argc, char** argv) {
 			{"no-daemon",no_argument,		0,  'N' },
 			{"syslog",   no_argument,		0,  's' },
 			{"log",      required_argument, 0,  'L' },
-			{"fifo",     required_argument,	0,  'f' },
+			{"fifo",     optional_argument,	0,  'f' },
+			{"listen",   required_argument,	0,  'l' },
 			{0,			0,					0,  0 }};
 		const char *opt_string="uhDNsL:p:";
 		int c;
@@ -154,8 +176,17 @@ int main(int argc, char** argv) {
 		case 'L':
 			pd.log.fname=optarg;
 			break;
+		case 'l':
+			pd.flag.socket_ctl=1;
+			pd.socket.l_name=optarg;
+			break;
 		case 'f':
-			pd.fifo=optarg;
+			pd.flag.fifo_ctl=1;
+			if(optarg) {
+				pd.fifo.name = optarg;
+			} else {
+				pd.fifo.name = DEFAULT_CONTROL_FIFO;
+			}
 			break;
 		case '?':
 			usage();
@@ -199,6 +230,11 @@ void start_backlightd() {
 		}
 	}
 	
+	if(!pd.flag.fifo_ctl && !pd.flag.socket_ctl) {
+		LOG(LOG_CRIT, "No control type specified. \n"
+				"Pleace specify the -f flag for fifo or -l for socket.\n");
+	}
+
 	if( !pd.light.iface_name) {
 		pd.light.iface = blc_get_first_iface(&err);		
 		if( !pd.light.iface ) {
@@ -246,7 +282,7 @@ void start_backlightd() {
 		LOG(LOG_CRIT, "locking pid file failed.\n");
 		exit(EERR_LOCK_PIDFILE);
 	}
-
+	
 	atexit(end_backlightd); // сопли
 
 	if(signal(SIGTERM, on_sigterm)==SIG_ERR) {
@@ -254,9 +290,16 @@ void start_backlightd() {
 		exit(EERR_CREATE_FIFO);
 	}
 	
-	pd.fifo_fd = open_ctl_fifo(pd.fifo);
-	if(pd.fifo_fd == -1) {
-		LOG(LOG_CRIT, "creation of the control fifo failed.\n");
+	if(pd.flag.fifo_ctl) {
+		pd.fifo.fd = open_ctl_fifo(pd.fifo.name);
+	}
+	if(pd.flag.socket_ctl) {
+		pd.socket.id = open_ctl_socket(pd.socket.l_name, &pd.socket.l_addr);
+	}
+
+	if( !((pd.flag.socket_ctl && pd.socket.id == -1) ||
+	      (pd.flag.fifo_ctl && pd.fifo.fd == -1)) ) {
+		LOG(LOG_CRIT, "all specified control interfaces are failed to be created.\n");
 		exit(EERR_CREATE_FIFO);
 	}
 
@@ -292,9 +335,9 @@ void on_sigterm(int sig) {
 }
 
 void backlightd_loop() {
-	FILE *fifo_fs=fdopen(pd.fifo_fd, "r");
+	FILE *fifo_fs=fdopen(pd.fifo.fd, "r");
 	while(1) {
-		fifo_fs = fdopen(pd.fifo_fd, "r");
+		fifo_fs = fdopen(pd.fifo.fd, "r");
 
 		if( fifo_fs == 0 ) {
 			LOG(LOG_CRIT, "fdopen control fifo failed with error %d:%s\n", 
@@ -313,7 +356,7 @@ void backlightd_loop() {
 			exit(EERR_FCLOSE_FIFO);
 		}
 
-		pd.fifo_fd = open_ctl_fifo(pd.fifo);
+		pd.fifo.fd = open_ctl_fifo(pd.fifo.name);
 	}
 }
 
@@ -340,10 +383,15 @@ error_t execute_fs_content(FILE* fs) {
 }
 
 error_t execute_str_command(const char *str) {
-	const char *cmd_start = str + strspn(str, SPACE_SYMBOLS);
+	const char *cmd_start;
 	char cmd;
 	int err=0, rc=0;
 	long new_brt, max_brt, cur_brt;
+	
+	for( cmd_start=str; cmd_start!=0 && isspace(*cmd_start); cmd_start++) {
+		// < search for a first non-space symbol
+	}
+
 	max_brt = blc_get_max_brightness(pd.light.iface, &err);
 	if(err) {
 		LOG(LOG_ERR, "geting max brightness failed with error %d: %s\n",
@@ -476,6 +524,45 @@ int open_ctl_fifo(const char *name) {
 	return rv;
 }
 
+int open_ctl_socket(const char *name, struct addrinfo *addr) {
+	int rv, rc;
+	struct addrinfo hints;
+	struct addrinfo *addr_res, *addr_p;
+	
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;     /* For wildcard IP address */
+	hints.ai_protocol = 0;	         /* Any protocol */
+
+	rc = getaddrinfo(NULL, name, &hints, &addr_res);
+	if( rc == 0 ) {
+		LOG(LOG_ERR, "getaddrinfo failed with error %d:%s\n",
+				rc, gai_strerror(rc));
+
+		return -1;
+	}
+
+	for( addr_p = addr_res; addr_p != 0; addr_p = addr_p->ai_next) {
+		rv = socket(addr_p->ai_family, addr_p->ai_socktype,	addr_p->ai_protocol);
+    	if (rv != -1) {
+			if (bind(rv, addr_p->ai_addr, addr_p->ai_addrlen) == -1) {
+				close(rv);
+			} else {
+				break; // Success
+			}
+		}
+	}
+
+	if( addr_p == 0 ) {
+		LOG(LOG_ERR, "failed to create a server socket for specified address\n");
+		rv = -1;
+	} else {
+		memcpy(addr_p, addr, sizeof(*addr));
+	}
+	freeaddrinfo(addr_p);
+	return rv;
+}
 
 int lock_pid_file(const char *name) {
 	int rv=0;
